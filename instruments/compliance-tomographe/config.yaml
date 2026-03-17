@@ -1,0 +1,29 @@
+thresholds:
+  licensing:
+    copyleft_deps: 0
+    unknown_license_deps: 0
+    attribution_file: true
+  configuration:
+    hardcoded_addresses: 0
+    env_example: true
+    config_validation: true
+  enforcer:
+    action_coverage: 100
+    boundary_tests_current: true
+    fail_closed: true
+    t0_categories: [financial, communication, destructive]
+  gdpr:
+    privacy_tiers: true
+    p2_p3_encrypted: true
+    data_export: true
+    data_delete: true
+  ai_act:
+    risk_classification: true
+    logging_art12: true
+    human_oversight: true
+scope:
+  access_control_config: config/access-control.yaml
+  component_manifest: config/component-permission-manifest.yaml
+  boundary_tests: tests/access-control/
+  config_dir: config/
+  business_docs: docs/business_case/

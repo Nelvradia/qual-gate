@@ -1,0 +1,5 @@
+# All scan output is generated and should not be tracked.
+# Output is organized by date: output/YYYY-MM-DD/<instrument-prefix>-<report>.md
+*
+!.gitignore
+!.gitkeep

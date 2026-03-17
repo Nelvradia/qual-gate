@@ -1,0 +1,17 @@
+thresholds:
+  fmt_violations: 0
+  clippy_warnings_max: 20
+  clippy_errors_max: 0
+  function_length_soft: 50
+  function_length_hard: 100
+  file_length_soft: 300
+  file_length_hard: 800
+  nesting_max: 5
+  todo_warning: 20
+  todo_major: 50
+  dead_functions_max: 10
+scope:
+  rust_dirs: [daemon/src/, enforcer/src/, watchdog/src/, apps/desktop/src-tauri/src/]
+  ts_dirs: [apps/desktop/src/]
+  kotlin_dirs: [apps/android/]
+  exclude: [vendor/, target/, node_modules/]

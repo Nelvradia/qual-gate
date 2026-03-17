@@ -1,0 +1,99 @@
+# qualitoscope/config.yaml
+base_dir: instruments
+
+instruments:
+  - id: I01
+    name: architecture-tomographe
+    sections: [S1]
+  - id: I02
+    name: test-tomographe
+    sections: [S4]
+  - id: I03
+    name: code-tomographe
+    sections: [S3, S13]
+  - id: I04
+    name: documentation-tomographe
+    sections: [S2, K2, K3, K4]
+  - id: I05
+    name: compliance-tomographe
+    sections: [S6, S12, K1]
+  - id: I06
+    name: data-tomographe
+    sections: [S8]
+  - id: I07
+    name: deployment-tomographe
+    sections: [S9]
+  - id: I08
+    name: observability-tomographe
+    sections: [S7]
+  - id: I09
+    name: security-tomographe
+    sections: [S5]
+  - id: I10
+    name: performance-tomographe
+    sections: [S10]
+  - id: I11
+    name: ux-tomographe
+    sections: [S11]
+  - id: I12
+    name: ai-ml-tomographe
+    sections: [AI-ML]
+
+thresholds:
+  verdict:
+    pass_max_critical: 0
+    pass_max_major: 0
+    conditional_max_critical: 0
+    conditional_max_major: 3
+  composite_score:
+    green: 0.90
+    yellow: 0.70
+    red: 0.50
+
+freshness:
+  quick_scan_hours: 24
+  targeted_scan_hours: 12
+  dr_mode: always_fresh
+
+delegation:
+  max_parallel: 5
+  timeout_minutes: 30
+
+cross_correlation:
+  rules:
+    - id: XC-01
+      name: high_churn_enforcer
+      instruments: [test, security]
+      severity: Major
+    - id: XC-02
+      name: skill_without_enforcer
+      instruments: [code, compliance]
+      severity: Critical
+    - id: XC-03
+      name: migration_without_g02
+      instruments: [data, documentation]
+      severity: Minor
+    - id: XC-04
+      name: metric_without_dashboard
+      instruments: [observability, documentation]
+      severity: Observation
+    - id: XC-05
+      name: soul_change_without_eval
+      instruments: [ai-ml, documentation]
+      severity: Minor
+    - id: XC-06
+      name: ci_job_not_gating
+      instruments: [deployment, test]
+      severity: Minor
+    - id: XC-07
+      name: component_without_a11y
+      instruments: [ux, test]
+      severity: Minor
+    - id: XC-08
+      name: dep_update_without_scan
+      instruments: [code, security]
+      severity: Major
+
+delta:
+  output_dir: qualitoscope/output/
+  keep_runs: 20

@@ -1,0 +1,30 @@
+# .security-tomographe/config.yaml
+thresholds:
+  supply_chain:
+    max_critical_cves: 0
+    max_high_cves: 0
+    max_medium_cves: 5
+    max_secrets_in_code: 0
+    max_secrets_in_history: 0
+  access_control:
+    enforcer_action_coverage: 100
+    defense_layers_active: 4
+  container:
+    hardening_score_min: 80
+  tokens:
+    require_expiry: true
+    max_lifetime_hours: 24
+
+scope:
+  rust_dirs: [daemon/src/, enforcer/src/, watchdog/src/, apps/desktop/src-tauri/src/]
+  python_dirs: [daemon/]
+  node_dirs: [apps/desktop/]
+  android_dirs: [apps/android/]
+  compose_file: docker-compose.yml
+  access_control_config: config/access-control.yaml
+  env_files: [.env, .env.example]
+  ci_config: .gitlab-ci.yml
+
+delta:
+  output_dir: .security-tomographe/output/
+  keep_runs: 10

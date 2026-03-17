@@ -1,0 +1,25 @@
+thresholds:
+  golden_datasets:
+    corrections_min: 50
+    summaries_min: 30
+    classifications_min: 40
+    templates_min: 20
+    max_category_imbalance: 0.60
+  extraction_quality:
+    correction_precision: 0.90
+    correction_recall: 0.80
+    classification_accuracy: 0.85
+    summary_recall: 0.80
+    template_recall: 0.80
+  rag:
+    eval_pairs_min: 50
+    recall_at_10: 0.80
+    mrr_min: 0.60
+  calibration:
+    data_points_min: 100
+scope:
+  golden_dir: tests/fixtures/golden/
+  rag_eval_dir: tests/fixtures/rag_eval/
+  eval_script: scripts/evaluate_extractions.py
+  soul_files: []
+  qdrant_url: "http://localhost:6333"

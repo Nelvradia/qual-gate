@@ -1,0 +1,40 @@
+# .performance-tomographe/config.yaml
+thresholds:
+  latency:
+    health_p99_ms: 10
+    auth_p99_ms: 5
+    router_p99_ms: 20
+    enforcer_p99_ms: 50
+    db_query_p99_ms: 10
+    rag_search_p99_ms: 200
+    context_assembly_p95_ms: 500
+    llm_first_token_p95_ms: 2000
+    full_response_p95_ms: 10000
+  memory:
+    daemon_idle_max_mb: 500
+    daemon_active_max_mb: 1000
+    enforcer_max_mb: 50
+    watchdog_max_mb: 30
+    growth_1h_max_percent: 5
+  vram:
+    rtx_4080_total_gb: 16
+    model_8b_q4_gb: 5
+    warn_utilization_percent: 90
+  throughput:
+    concurrent_messages_min: 5
+    concurrent_ws_sessions_min: 5
+  startup:
+    full_stack_max_seconds: 60
+    daemon_ready_max_seconds: 15
+    enforcer_ready_max_seconds: 5
+
+scope:
+  daemon_url: "http://localhost:39317"
+  requires_auth: true
+  measure_duration_minutes: 10
+  rust_dirs: [daemon/src/, enforcer/src/, watchdog/src/]
+  compose_file: docker-compose.yml
+
+delta:
+  output_dir: .performance-tomographe/output/
+  keep_runs: 10

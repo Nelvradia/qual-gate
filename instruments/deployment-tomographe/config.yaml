@@ -1,0 +1,21 @@
+thresholds:
+  pipeline:
+    min_stages: 4
+    max_allow_failure_critical: 0
+    required_blocking: [cargo_fmt, cargo_clippy, cargo_test]
+  reproducibility:
+    lockfiles_committed: true
+    docker_images_pinned: true
+    toolchain_pinned: true
+  artifacts:
+    apk_built: true
+    deb_built: true
+    docker_pushed: true
+  release:
+    version_files_exist: true
+    changelog_exists: true
+scope:
+  ci_config: .gitlab-ci.yml
+  compose_files: [docker-compose.yml, docker-compose.ci.yml]
+  version_files: [daemon/VERSION, enforcer/VERSION, watchdog/VERSION]
+  operations_docs: docs/operations/

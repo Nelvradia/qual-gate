@@ -1,0 +1,28 @@
+thresholds:
+  circular_deps: 0
+  layer_violations: 0
+  god_module_lines: 800
+  god_module_dependents: 5
+  max_fan_out: 10
+  skill_cross_import: 0
+  enforcer_bypass: 0
+  drift_items_major: 0
+  drift_items_minor: 5
+  evolution_score_green: 0.80
+  evolution_score_yellow: 0.60
+scope:
+  rust_crates: [core/daemon, core/enforcer, core/watchdog, core/common]
+  desktop_crate: [desktop/src-tauri]
+  doc_sources: [CLAUDE.md, docs/four-pillars/, .claude/decisions/]
+  exclude: [vendor/, target/, node_modules/]
+layers:
+  daemon:
+    allowed: api -> skill -> db
+    violations:
+      - db -> skill
+      - db -> api
+      - skill -> api
+  enforcer:
+    independent_of: [daemon, watchdog]
+  watchdog:
+    independent_of: [daemon, enforcer]

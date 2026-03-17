@@ -1,0 +1,49 @@
+thresholds:
+  coverage:
+    rust_line_phase1b: 0.60
+    rust_line_phase2: 0.75
+    enforcer_action: 1.00
+    module_gap_max: 10
+  quality:
+    assertion_density_min: 1.5
+    assertion_density_target: 2.0
+    happy_path_ratio_max: 0.70
+    happy_path_ratio_warning: 0.80
+    error_case_ratio_min: 0.10
+  health:
+    ci_pass_rate_min: 0.90
+    suite_duration_max_seconds: 180
+    suite_duration_warning_seconds: 300
+    flaky_test_max: 0
+    allow_failure_without_issue: 0
+  alignment:
+    min_unit_tests_per_action: 3
+    crud_functional_required: true
+    standard_columns_required: true
+    api_contract_required: true
+    enforcer_boundary_required: true
+  ai_quality:
+    stub_coverage: 1.00
+    error_stub_ratio_min: 0.30
+    golden_path_tests_min: 5
+  regression:
+    high_churn_threshold: 10
+    high_risk_files_max: 3
+scoring:
+  weights:
+    coverage: 0.25
+    quality: 0.20
+    alignment: 0.20
+    health: 0.15
+    ai_quality: 0.10
+    regression: 0.10
+  composite:
+    green: 0.90
+    yellow: 0.70
+    red: 0.50
+scope:
+  rust_crates: [core/daemon, core/enforcer, core/watchdog, core/common]
+  python_dirs: [tests/]
+  ts_dirs: [desktop/src/]
+  fixture_dirs: [core/tests/fixtures/]
+  exclude: [vendor/, target/, node_modules/]

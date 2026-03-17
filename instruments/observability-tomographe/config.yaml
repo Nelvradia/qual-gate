@@ -1,0 +1,25 @@
+thresholds:
+  metrics:
+    min_registered: 50
+    g07_alignment_percent: 70
+    naming_convention: "<project>_"
+  alerting:
+    min_alert_rules: 8
+    required_alerts: [DaemonDown, EnforcerDown, WatchdogDown, HighMemoryUsage, DiskSpaceLow]
+  logging:
+    sensitive_data_in_logs: 0
+    json_format: true
+  dashboards:
+    min_dashboards: 3
+    orphan_metrics_max: 5
+  health:
+    endpoints: ["/health"]
+    dependency_checks: [db, enforcer]
+  audit:
+    required_events: [auth_success, auth_failure, action_blocked, device_pair]
+scope:
+  metrics_file: daemon/src/metrics.rs
+  metrics_doc: docs/metrics-registry.md
+  alert_rules: config/prometheus/
+  dashboards: config/grafana/dashboards/
+  api_dir: daemon/src/api/

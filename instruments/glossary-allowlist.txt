@@ -1,0 +1,198 @@
+# Glossary linter allowlist — patterns to suppress (one per line)
+# Lines starting with # are comments. Patterns are grep -v matched.
+#
+# === Framework / language constructs ===
+session_id
+session_token
+SessionState
+session_count
+domain_name
+DomainConfig
+context_window
+context_budget
+ContextBudget
+trigger_id
+trigger_name
+TriggerConfig
+template_engine
+TemplateEngine
+thread_pool
+ThreadPool
+# Protobuf / serde field names (quoted)
+"domain"
+"context"
+"session"
+"trigger"
+"template"
+"thread"
+# Config YAML key references
+domain_routing
+session_timeout
+context_size
+#
+# === Rust variable binding patterns ===
+# let/Some/match bindings using bare term as a local variable name
+let session
+let domain
+let template
+let trigger
+let thread
+Some(session)
+Some(domain)
+Some(template)
+Some(trigger)
+Some(thread)
+match session
+match domain
+match template
+match trigger
+match thread
+#
+# === Struct field access patterns ===
+session.
+domain.
+template.
+trigger.
+thread.
+#
+# === String literals in descriptions (tool definitions, error messages) ===
+description.*domain
+description.*session
+description.*trigger
+description.*template
+description.*thread
+description.*context
+#
+# === Research/code session module patterns ===
+# These modules legitimately use "session" as a qualified concept
+# (research_session, code_session)
+get_session
+create_session
+update_session
+delete_session
+list_session
+session_status
+session not found
+Research session
+session in '
+#
+# === Trigger as verb (not noun) ===
+trigger_sync
+trigger_n8n
+trigger_research
+Failed to trigger
+Cannot trigger
+to trigger
+/trigger
+#
+# === Template module patterns ===
+get_template
+create_template
+update_template
+delete_template
+list_template
+template by
+template with
+template's
+this template
+a template
+the template
+New template
+#
+# === Thread module patterns ===
+get_thread
+create_thread
+update_thread
+delete_thread
+list_thread
+thread as
+done thread
+active thread
+test thread
+No active thread
+thread_name
+thread_conversations
+#
+# === Domain as function parameter / filter ===
+by domain
+domain.as_
+task domain
+domain classification
+domain correlation
+metric domain
+Life domain
+life domain
+by life
+filter by
+#
+# === Context in error messages / strings / code patterns ===
+context for
+context_tokens
+context_manager
+ContextManager
+context injection
+# context: as YAML key in config validator tests
+context:
+# let context / context. / context, — local variable in briefing builder etc.
+let context
+let mut context
+context.insert
+context,
+context =
+pub context
+body.context
+context_label
+# Briefing module uses "context" as a local var for assembled briefing data
+# (this is "briefing_context" semantically, not bare G01 "context")
+context.to_string
+context.len
+context.contains
+Object(context)
+SA context
+context assembled
+context available
+context shown
+context-aware
+wf-morning-context
+from the provided context
+# Agent/pipeline module: context is always qualified semantically
+# (sprint_context, RAG context, personality context, thread context)
+sprint context
+RAG context
+personality context
+Thread Context
+without context
+context retrieved
+context above
+the context
+mod context
+context TEXT
+context.as_deref
+date, context
+enough information
+# SQL column references and config struct field access
+GROUP BY.*domain
+context TEXT
+SELECT context
+context             TEXT
+context.is_none
+context.semantic
+context.score
+config.context
+Thread context tokens
+planning context
+Skip elaboration
+# Pairing session (FIDO2 — this is a fido2_session)
+shared_secret = session
+# Research DB comments
+sources per session
+#
+# === Enforcer qualified usage ===
+enforcer_domain
+action_domain
+skill_domain
+#
+# === RAG / ingest patterns ===
+domain.into
+domain.to_string
+domain,

@@ -1,0 +1,31 @@
+# .ux-tomographe/config.yaml
+thresholds:
+  accessibility:
+    min_labeled_interactive_ratio: 0.90
+    min_touch_target_dp: 48
+    min_click_target_px: 44
+    min_contrast_ratio: 4.5
+    enhanced_contrast_ratio: 7.0
+  consistency:
+    max_android_only_concepts: 3
+    max_desktop_only_concepts: 3
+    core_features_parity: 100
+  interaction:
+    required_states: [loading, error, empty, offline]
+    required_flows: [pairing, chat, approval, reconnection]
+  personality:
+    roles_defined: 4
+    anti_traits_enforced: true
+    confidence_tiers: 4
+
+scope:
+  android_src: apps/android/
+  desktop_src: apps/desktop/src/
+  desktop_tauri_src: apps/desktop/src-tauri/src/
+  personality_files: []
+  ux_spec: docs/ux-specification.md
+  design_docs: [docs/08-interface-layer.md, docs/11-personality-system.md]
+
+delta:
+  output_dir: .ux-tomographe/output/
+  keep_runs: 10

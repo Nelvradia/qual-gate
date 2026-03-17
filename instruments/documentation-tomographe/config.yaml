@@ -1,0 +1,18 @@
+thresholds:
+  max_stale_docs_90d: 10
+  max_broken_links: 0
+  max_orphan_docs: 5
+  glossary_violations: 0
+  schema_map_alignment: 100
+  metrics_registry_alignment: 90
+  frontmatter_coverage: 95
+scope:
+  docs_dir: docs/
+  design_docs: docs/four-pillars/brainstorm/
+  gap_docs: docs/four-pillars/gaps/
+  operations: docs/operations/
+  adrs: .claude/decisions/
+  glossary_script: infra/scripts/lint_glossary.py
+  schema_map: docs/schema-map.md
+  metrics_doc: docs/metrics-registry.md
+  access_control_config: config/access-control.yaml

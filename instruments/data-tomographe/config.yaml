@@ -1,0 +1,21 @@
+thresholds:
+  schema:
+    g02_alignment_percent: 90
+    max_undocumented_tables: 3
+    idempotent_migrations: 100
+  privacy:
+    p2_p3_encrypted: true
+    p3_audit_trail: true
+  backup:
+    all_dbs_covered: true
+    schedule_automated: true
+    restore_tested: true
+  lifecycle:
+    retention_policy_exists: true
+scope:
+  db_dir: daemon/src/db/
+  schema_doc: docs/schema-map.md
+  config_dir: config/
+  backup_scripts: infra/scripts/
+  dr_runbook: docs/operations/disaster-recovery-runbook.md
+  qdrant_url: "http://localhost:6333"
