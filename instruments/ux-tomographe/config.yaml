@@ -1,4 +1,4 @@
-# .ux-tomographe/config.yaml
+# ux-tomographe/config.yaml
 thresholds:
   accessibility:
     min_labeled_interactive_ratio: 0.90
@@ -27,5 +27,5 @@ scope:
   design_docs: [docs/08-interface-layer.md, docs/11-personality-system.md]
 
 delta:
-  output_dir: .ux-tomographe/output/
+  output_dir: output/
   keep_runs: 10

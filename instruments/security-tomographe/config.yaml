@@ -1,4 +1,4 @@
-# .security-tomographe/config.yaml
+# security-tomographe/config.yaml
 thresholds:
   supply_chain:
     max_critical_cves: 0
@@ -26,5 +26,5 @@ scope:
   ci_config: .gitlab-ci.yml
 
 delta:
-  output_dir: .security-tomographe/output/
+  output_dir: output/
   keep_runs: 10
