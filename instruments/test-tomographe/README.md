@@ -1,4 +1,4 @@
-# .test-tomographe/
+# test-tomographe
 
 **Test health scanner for the target project.** Audits test coverage, quality, alignment with test mandates, CI health, regression risk, and AI/ML test readiness. Produces TR{n} reports that track test suite evolution over time.
 
@@ -9,8 +9,8 @@
 ## Quick Start
 
 ```bash
-"Read .test-tomographe/README.md and execute a full test health scan."
-"Read .test-tomographe/README.md and execute Phase 4 (Alignment) only."
+"Read instruments/test-tomographe/README.md and execute a full test health scan."
+"Read instruments/test-tomographe/README.md and execute Phase 4 (Alignment) only."
 ```
 
 ---

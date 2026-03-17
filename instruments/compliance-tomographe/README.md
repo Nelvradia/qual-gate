@@ -1,4 +1,4 @@
-# .compliance-tomographe/
+# compliance-tomographe
 
 **Compliance and legal scanner for the target project.** Audits license compatibility, configuration management, access control completeness, GDPR readiness, and AI Act preparedness. Covers the broadest DR scope alongside the Documentation Tomographe, unifying three DR sections plus the critical access control coverage appendix.
 
@@ -9,9 +9,9 @@
 ## Quick Start
 
 ```bash
-"Read .compliance-tomographe/README.md and execute a full compliance scan."
-"Read .compliance-tomographe/README.md and execute Phase 3 (Access Control Coverage) only."
-"Read .compliance-tomographe/README.md and execute Phase 5 (AI Act Readiness) for production planning."
+"Read instruments/compliance-tomographe/README.md and execute a full compliance scan."
+"Read instruments/compliance-tomographe/README.md and execute Phase 3 (Access Control Coverage) only."
+"Read instruments/compliance-tomographe/README.md and execute Phase 5 (AI Act Readiness) for production planning."
 ```
 
 ---

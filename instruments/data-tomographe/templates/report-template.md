@@ -4,8 +4,12 @@ run: DA{n}
 date: {date}
 verdict: {verdict}
 ---
+
 # Data Scan Report — DA{n}
-## Summary
+
+**Date:** {date} | **Verdict:** {verdict}
+
+## Executive Summary
 | Metric | Value | Status |
 |--------|-------|--------|
 | Tables in code | | |
@@ -14,6 +18,18 @@ verdict: {verdict}
 | Migrations idempotent | | |
 | Privacy tiers enforced | | |
 | Backup coverage | | |
+
 ## Phase Results
+### Phase 1 — Schema Alignment
+### Phase 2 — Migration Health
+### Phase 3 — Data Classification Tiers
+### Phase 4 — Cross-DB Integrity
+### Phase 5 — Backup Coverage
+### Phase 6 — Data Lifecycle
+
+## Overall Summary
+| Phase | OK | Observation | Minor | Major | Critical |
+|-------|----|----|-------|-------|----------|
+
 ## Action Register
-| ID | Phase | Severity | Finding | Action | Priority |
+| ID | Phase | Severity | Finding | Action | Priority | Status |

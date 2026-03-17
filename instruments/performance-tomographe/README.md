@@ -1,4 +1,4 @@
-# .performance-tomographe/
+# performance-tomographe
 
 **Performance profiling and baseline scanner for the target project.** Measures latency, memory, VRAM usage, database performance, and context assembly timing. Produces baselines for regression detection and budget decomposition.
 
@@ -10,13 +10,13 @@
 
 ```bash
 # Full scan (all phases — requires running services)
-"Read .performance-tomographe/README.md and execute a full performance scan."
+"Read instruments/performance-tomographe/README.md and execute a full performance scan."
 
 # Static analysis only (no running services needed)
-"Read .performance-tomographe/README.md and execute Phases 1-2 only (static analysis)."
+"Read instruments/performance-tomographe/README.md and execute Phases 1-2 only (static analysis)."
 
 # Baseline capture (requires running services)
-"Read .performance-tomographe/README.md and capture performance baselines."
+"Read instruments/performance-tomographe/README.md and capture performance baselines."
 ```
 
 ---
@@ -375,7 +375,7 @@ Include:
 ## Directory Structure
 
 ```
-.performance-tomographe/
+performance-tomographe/
 ├── README.md
 ├── config.yaml
 ├── methods/

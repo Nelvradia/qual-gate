@@ -1,4 +1,4 @@
-# .performance-tomographe/config.yaml
+# performance-tomographe/config.yaml
 thresholds:
   latency:
     health_p99_ms: 10
@@ -36,5 +36,5 @@ scope:
   compose_file: docker-compose.yml
 
 delta:
-  output_dir: .performance-tomographe/output/
+  output_dir: output/
   keep_runs: 10

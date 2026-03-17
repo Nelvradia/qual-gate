@@ -1,4 +1,4 @@
-# .security-tomographe/
+# security-tomographe
 
 **Security posture scanner for the target project.** Scans dependencies, secrets, attack surface, encryption, container hardening, and AI-specific threats (prompt injection, data exfiltration). Produces a severity-rated report with drift tracking and auto-fixable recommendations.
 
@@ -10,13 +10,13 @@
 
 ```bash
 # Full scan (all phases)
-"Read .security-tomographe/README.md and execute a full security scan."
+"Read instruments/security-tomographe/README.md and execute a full security scan."
 
 # Targeted scan
-"Read .security-tomographe/README.md and execute Phase 3 (Attack Surface) only."
+"Read instruments/security-tomographe/README.md and execute Phase 3 (Attack Surface) only."
 
 # Delta scan
-"Read .security-tomographe/README.md and execute a delta scan vs the last run."
+"Read instruments/security-tomographe/README.md and execute a delta scan vs the last run."
 ```
 
 ---
@@ -44,17 +44,17 @@
 
 ```bash
 # Rust dependencies
-cargo audit 2>&1 | tee .security-tomographe/output/cargo-audit-raw.txt
+cargo audit 2>&1 | tee output/cargo-audit-raw.txt
 # Count: advisories, warnings, unmaintained crates
 cargo audit --json 2>/dev/null | jq '.vulnerabilities.count, .warnings | length'
 
 # Python dependencies
-pip audit --format=json 2>/dev/null > .security-tomographe/output/pip-audit-raw.json
+pip audit --format=json 2>/dev/null > output/pip-audit-raw.json
 # Fallback if pip-audit not installed:
 pip list --outdated --format=json 2>/dev/null
 
 # Node.js / React frontend
-cd apps/desktop && npm audit --json 2>/dev/null > ../../.security-tomographe/output/npm-audit-raw.json
+cd apps/desktop && npm audit --json 2>/dev/null > ../../output/npm-audit-raw.json
 cd ../..
 
 # Docker images
@@ -62,7 +62,7 @@ cd ../..
 grep 'image:' docker-compose.yml | awk '{print $2}' | while read img; do
   echo "--- Scanning $img ---"
   trivy image --format json "$img" 2>/dev/null
-done > .security-tomographe/output/trivy-raw.json
+done > output/trivy-raw.json
 
 # If trivy unavailable, check image pinning:
 grep 'image:' docker-compose.yml | grep -v 'sha256' | head -20
@@ -103,7 +103,7 @@ grep 'image:' docker-compose.yml | grep -v 'sha256' | head -20
 ```bash
 # Gitleaks scan (if available)
 gitleaks detect --source . --report-format json \
-  --report-path .security-tomographe/output/gitleaks-raw.json 2>/dev/null
+  --report-path output/gitleaks-raw.json 2>/dev/null
 
 # Fallback: pattern-based scanning
 # API keys, tokens, passwords in source code
@@ -368,7 +368,7 @@ Apply severity ratings per finding, compute overall verdict, generate action reg
 ## Output Directory Structure
 
 ```
-.security-tomographe/
+security-tomographe/
 ├── README.md
 ├── config.yaml
 ├── methods/

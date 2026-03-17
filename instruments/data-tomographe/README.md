@@ -1,4 +1,4 @@
-# .data-tomographe/
+# data-tomographe
 
 **Data and schema health scanner for the target project.** Audits schema alignment with documentation, migration integrity, cross-database consistency, backup coverage, data classification tier enforcement, and data lifecycle. Replaces manual schema inspection approaches.
 
@@ -9,8 +9,8 @@
 ## Quick Start
 
 ```bash
-"Read .data-tomographe/README.md and execute a full data scan."
-"Read .data-tomographe/README.md and execute Phase 3 (Data Classification Tiers) only."
+"Read instruments/data-tomographe/README.md and execute a full data scan."
+"Read instruments/data-tomographe/README.md and execute Phase 3 (Data Classification Tiers) only."
 ```
 
 ---
