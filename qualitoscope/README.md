@@ -306,10 +306,10 @@ For each instrument that needs to run:
 | ID | Rule | Instruments | What It Catches |
 |----|------|------------|-----------------|
 | **XC-01** | High-churn file is also a permission module | test × security | Security-sensitive code with inadequate test coverage |
-| **XC-02** | New component added but no permission entry | code × compliance | Component bypasses permission system |
+| **XC-02** | New component added but no auth entry | code × compliance | Component bypasses permission system (conditional: `profile.toggles.permission_system`) |
 | **XC-03** | DB migration landed but schema documentation not updated | data × documentation | Schema map drift |
 | **XC-04** | New metric registered but no dashboard panel | observability × documentation | Observable data with no visibility |
-| **XC-05** | AI configuration changed but no prompt quality eval | AI/ML × documentation | Prompt regression risk |
+| **XC-05** | AI config changed but no prompt quality eval | AI/ML × documentation | Prompt regression risk (conditional: `profile.toggles.ai_ml_components`) |
 | **XC-06** | CI job added but not merge-blocking | deployment × test | Test exists but doesn't gate anything |
 | **XC-07** | UX component added but no accessibility test | UX × test | Accessibility gap for new UI |
 | **XC-08** | Dependency updated but security scan stale | code × security | Supply chain vulnerability window |
@@ -326,11 +326,12 @@ XC-01: High-churn + permission module
   4. For each intersection: check test coverage from test instrument
   5. Flag if coverage < 80% for a high-churn permission file
 
-XC-02: New component without permission entry
-  1. From code instrument: get list of all registered components (component domain registrations)
-  2. From compliance instrument: get list of all permission configuration domain entries
-  3. Diff: components present in code but absent from permission configuration
-  4. Flag each missing entry as Critical (bypasses permission system)
+XC-02: New component without auth entry (conditional: profile.toggles.permission_system)
+  1. If profile.toggles.permission_system is false → log OK: "Rule skipped — toggle disabled", skip
+  2. From code instrument: get list of all registered components (component domain registrations)
+  3. From compliance instrument: get list of all permission/auth configuration domain entries
+  4. Diff: components present in code but absent from auth configuration
+  5. Flag each missing entry as Critical (bypasses permission system)
 
 XC-03: Migration without schema documentation update
   1. From data instrument: get latest migration version per database
@@ -344,11 +345,12 @@ XC-04: Metric without dashboard
   3. Diff: metrics with no corresponding dashboard panel
   4. Flag as Observation (data exists but isn't visualized)
 
-XC-05: AI configuration change without eval
-  1. From documentation instrument: check AI configuration last-modified date
-  2. From AI/ML instrument: check last prompt quality evaluation date
-  3. If AI configuration modified after last eval → prompt regression risk
-  4. Flag as Minor (needs re-evaluation, not necessarily broken)
+XC-05: AI config change without eval (conditional: profile.toggles.ai_ml_components)
+  1. If profile.toggles.ai_ml_components is false → log OK: "Rule skipped — toggle disabled", skip
+  2. From documentation instrument: check AI configuration last-modified date
+  3. From AI/ML instrument: check last prompt quality evaluation date
+  4. If AI configuration modified after last eval → prompt regression risk
+  5. Flag as Minor (needs re-evaluation, not necessarily broken)
 
 XC-06: CI job not gating
   1. From deployment instrument: get list of all CI jobs
@@ -373,11 +375,11 @@ XC-08: Dep update without security scan
 
 | Finding | Severity |
 |---------|----------|
-| Component bypasses permission system (XC-02) | **Critical** |
+| Component without auth entry (XC-02) | **Critical** |
 | High-churn permission file with low coverage (XC-01) | **Major** |
 | Supply chain vulnerability window (XC-08) | **Major** |
 | Schema map drift (XC-03) | **Minor** |
-| Prompt regression risk (XC-05) | **Minor** |
+| AI config change without eval (XC-05) | **Minor** |
 | CI job not gating (XC-06) | **Minor** |
 | UX component without a11y test (XC-07) | **Minor** |
 | Metric without dashboard (XC-04) | **Observation** |

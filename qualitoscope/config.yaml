@@ -75,9 +75,10 @@ cross_correlation:
       instruments: [test, security]
       severity: Major
     - id: XC-02
-      name: skill_without_enforcer
+      name: component_without_auth_entry
       instruments: [code, compliance]
       severity: Critical
+      condition: profile.toggles.permission_system
     - id: XC-03
       name: migration_without_g02
       instruments: [data, documentation]
@@ -87,9 +88,10 @@ cross_correlation:
       instruments: [observability, documentation]
       severity: Observation
     - id: XC-05
-      name: soul_change_without_eval
+      name: ai_config_change_without_eval
       instruments: [ai-ml, documentation]
       severity: Minor
+      condition: profile.toggles.ai_ml_components
     - id: XC-06
       name: ci_job_not_gating
       instruments: [deployment, test]
