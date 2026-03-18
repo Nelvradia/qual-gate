@@ -8,12 +8,13 @@ An open-source suite of quality diagnostic instruments for auditing software pro
 
 ```
 qual-gate/
-├── instruments/                  # All 12 domain scanning tomographes
+├── instruments/                  # All 13 domain scanning tomographes
 │   ├── ai-ml-tomographe/         #   AI/ML readiness scanning
 │   ├── architecture-tomographe/  #   Architectural health scanning
 │   ├── code-tomographe/          #   Code quality scanning
 │   ├── compliance-tomographe/    #   Regulatory/standard compliance
 │   ├── data-tomographe/          #   Data quality and integrity
+│   ├── dependency-tomographe/    #   Dependency inventory and licence risk
 │   ├── deployment-tomographe/    #   Deployment readiness
 │   ├── documentation-tomographe/ #   Documentation quality
 │   ├── observability-tomographe/ #   Observability coverage
@@ -23,8 +24,7 @@ qual-gate/
 │   └── ux-tomographe/            #   UX quality scanning
 ├── qualitoscope/                 # Orchestrator — delegates to all instruments
 ├── output/                       # Generated scan reports (untracked)
-│   └── YYYY-MM-DD/               #   Date-partitioned results
-├── rag/                          # RAG infrastructure — Cargo workspace
+│   └── YYYY-MM-DD_{project_name}/ #  One folder per run
 ├── LICENSE
 ├── README.md
 └── VERSION
@@ -56,6 +56,7 @@ Each instrument follows a standard structure:
 | `code-tomographe` | Code quality — complexity, duplication, style, dead code |
 | `compliance-tomographe` | Regulatory compliance — GDPR, AI Act, licensing |
 | `data-tomographe` | Data quality — integrity, schema, migrations, backups |
+| `dependency-tomographe` | Dependency inventory — SBOM, unused deps, licence risk, health |
 | `deployment-tomographe` | Deployment readiness — Docker, CI/CD, rollback |
 | `documentation-tomographe` | Documentation quality — coverage, accuracy, freshness |
 | `observability-tomographe` | Observability — metrics, logging, tracing, alerting |
