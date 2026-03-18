@@ -1,4 +1,9 @@
 # qualitoscope/config.yaml
+# project_name: the target project being scanned. Combined with the run date to form
+# the output folder: output/YYYY-MM-DD_project-name/ at the qual-gate repo root.
+# Set this before running any instrument or the qualitoscope.
+project_name: ""          # e.g. "my-project" → output goes to output/2026-03-18_my-project/
+
 base_dir: instruments
 
 instruments:
@@ -95,5 +100,7 @@ cross_correlation:
       severity: Major
 
 delta:
-  output_dir: qualitoscope/output/
+  # All reports land in output/YYYY-MM-DD_{project_name}/ at the repo root.
+  # Folder name is composed at runtime from today's date + project_name above.
+  output_root: output/
   keep_runs: 20

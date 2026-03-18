@@ -84,7 +84,7 @@ for inst in code-tomographe documentation-tomographe compliance-tomographe \
   echo "--- instruments/$inst ---"
   [ -f "instruments/$inst/README.md" ]      && echo "  README.md: OK"      || echo "  README.md: MISSING"
   [ -f "instruments/$inst/config.yaml" ]    && echo "  config.yaml: OK"    || echo "  config.yaml: MISSING"
-  [ -d "instruments/$inst/output" ]         && echo "  output/: OK"        || echo "  output/: MISSING"
+  [ -d "output" ]                           && echo "  output/: OK"             || echo "  output/: MISSING (create before running)"
   [ -d "instruments/$inst/templates" ]      && echo "  templates/: OK"     || echo "  templates/: MISSING"
   [ -d "instruments/$inst/checklists" ]     && echo "  checklists/: OK"    || echo "  checklists/: MISSING"
 done
@@ -124,7 +124,7 @@ done
       "present": true,
       "has_readme": true,
       "has_config": true,
-      "has_output_dir": true,
+      "has_output_dir": true,  // refers to output/ at repo root
       "config_valid": true,
       "last_run": "ISO-8601 or null"
     }
@@ -149,13 +149,14 @@ done
 ### Steps
 
 ```bash
+# PROJECT_NAME is read from qualitoscope/config.yaml
 # For each instrument, check output freshness
 for inst in architecture-tomographe test-tomographe code-tomographe documentation-tomographe \
   compliance-tomographe data-tomographe deployment-tomographe \
   observability-tomographe security-tomographe performance-tomographe \
   ux-tomographe ai-ml-tomographe; do
 
-  latest="instruments/$inst/output/latest.json"
+  latest="output/${YYYYMMDD}_${PROJECT_NAME}/${inst}-latest.json"
   if [ -f "$latest" ]; then
     age_hours=$(( ( $(date +%s) - $(stat -c %Y "$latest") ) / 3600 ))
     echo "instruments/$inst: output is ${age_hours}h old"
@@ -171,8 +172,8 @@ For each instrument that needs to run:
 
 1. Read the instrument's `README.md` for methodology
 2. Execute a full scan following the instrument's phase sequence
-3. Verify output files were produced in the instrument's `output/` directory
-4. Read the instrument's `output/latest.json` (or equivalent summary)
+3. Verify output files were produced in `output/YYYY-MM-DD_{project_name}/`
+4. Read the instrument's report from `output/YYYY-MM-DD_{project_name}/`
 5. Record the instrument's findings in the Qualitoscope's working set
 
 **Parallel execution:** Instruments are independent — up to 5 can be delegated concurrently using sub-agents. Group by estimated run time:
@@ -203,7 +204,7 @@ For each instrument that needs to run:
       "id": "I01",
       "name": "architecture-tomographe",
       "action": "invoked|cached|skipped",
-      "output_path": "instruments/architecture-tomographe/output/latest.json",
+      "output_path": "output/YYYY-MM-DD_{project_name}/AR1-architecture.md",
       "findings_count": 5,
       "critical": 0,
       "major": 1,
@@ -521,7 +522,7 @@ score = 1.0
 6. Generate the action register from all Minor+ findings
 7. Assign priority to each action item (P1–P4)
 
-### Output: `output/YYYY-MM-DD/DR{n}-{target}.md` + `output/YYYY-MM-DD/phase6-dr-synthesis.json`
+### Output: `output/YYYY-MM-DD_{project_name}/DR{n}-{target}.md` + `output/YYYY-MM-DD_{project_name}/phase6-dr-synthesis.json`
 
 The DR report follows the project's `DR-TEMPLATE.md` format. The JSON contains metadata about the synthesis process.
 
@@ -535,7 +536,7 @@ The DR report follows the project's `DR-TEMPLATE.md` format. The JSON contains m
 
 ```bash
 # List all previous QS reports
-ls -t qualitoscope/output/*/QS*.json 2>/dev/null
+ls -t output/*_${PROJECT_NAME}/QS*.json 2>/dev/null
 
 # Compare current vs previous
 # For each instrument:
@@ -605,9 +606,9 @@ ls -t qualitoscope/output/*/QS*.json 2>/dev/null
 
 | Mode | Report File | Contents |
 |------|------------|----------|
-| **Quick Scan** | `output/YYYY-MM-DD/QS{n}-qualitoscope.md` | Phases 1-5 + 7-8 (no DR synthesis) |
-| **DR Mode** | `output/YYYY-MM-DD/QS{n}-qualitoscope.md` + `output/YYYY-MM-DD/DR{n}-{target}.md` | All 8 phases including DR report |
-| **Targeted** | `output/YYYY-MM-DD/QS{n}-qualitoscope-targeted.md` | Subset of instruments + cross-correlations |
+| **Quick Scan** | `output/YYYY-MM-DD_{project_name}/QS{n}-qualitoscope.md` | Phases 1-5 + 7-8 (no DR synthesis) |
+| **DR Mode** | `output/YYYY-MM-DD_{project_name}/QS{n}-qualitoscope.md` + `output/YYYY-MM-DD_{project_name}/DR{n}-{target}.md` | All 8 phases including DR report |
+| **Targeted** | `output/YYYY-MM-DD_{project_name}/QS{n}-qualitoscope-targeted.md` | Subset of instruments + cross-correlations |
 
 ### Steps
 
@@ -639,12 +640,22 @@ qualitoscope/
 │   ├── instrument-readiness.md        # All 12 instruments present and configured
 │   ├── dr-section-mapping.md          # Instrument → DR section mapping
 │   └── overlap-ownership.md           # Ownership rules for shared concerns
-├── templates/
-│   └── report-template.md
-├── output/
-│   └── .gitignore
-└── fixes/
-    └── README.md
+└── templates/
+    └── report-template.md
+
+output/                                  ← repo root
+└── YYYY-MM-DD_{project_name}/           ← one folder per run
+    ├── QS{n}-qualitoscope.md
+    ├── DR{n}-{target}.md
+    ├── AR{n}-architecture.md
+    ├── CQ{n}-code.md
+    ├── SS{n}-security.md
+    ├── ... (all instrument reports)
+    ├── phase1-instrument-inventory.json
+    ├── phase2-delegation.json
+    └── scratch/
+        ├── security/
+        └── code/
 ```
 
 ---
@@ -652,6 +663,8 @@ qualitoscope/
 ## Configuration (config.yaml)
 
 ```yaml
+project_name: ""   # e.g. "my-project"
+
 base_dir: instruments
 
 instruments:
@@ -713,7 +726,7 @@ delegation:
   timeout_minutes: 30
 
 delta:
-  output_dir: output/YYYY-MM-DD/
+  output_root: output/   # folders created as output/YYYY-MM-DD_{project_name}/
   keep_runs: 20
 ```
 

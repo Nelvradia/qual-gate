@@ -42,7 +42,7 @@ Qual-gate instruments are designed to be run by an AI coding assistant (Claude C
 "Read qualitoscope/README.md and execute a full Qualitoscope scan."
 ```
 
-Reports are written to `output/YYYY-MM-DD/` with instrument-prefixed filenames (e.g., `CQ1-code.md`, `SS1-security.md`).
+Reports are written to `output/YYYY-MM-DD_{project_name}/` with instrument-prefixed filenames (e.g., `CQ1-code.md`, `SS1-security.md`). Set `project_name` in `qualitoscope/config.yaml` before running.
 
 ## Instruments
 
