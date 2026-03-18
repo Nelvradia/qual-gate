@@ -17,10 +17,17 @@ Defines which instrument is authoritative when multiple instruments check the sa
 - **Fingerprint pattern:** `*enforcer*`, `*K1*`, `*domain_count*`, `*action_coverage*`
 
 ### Supply Chain / Dependencies
-- **Primary:** `security-tomographe`
+- **Primary (CVEs, advisories):** `security-tomographe`
+- **Primary (SBOM, unused deps, health, pinning):** `dependency-tomographe`
 - **Secondary:** `code-tomographe`
-- **Rule:** `security` owns vulnerability scanning (CVEs, advisories). `code` owns dependency health (outdated, bloat, MSRV). If both flag the same crate, keep `security`'s severity rating.
-- **Fingerprint pattern:** `*cargo-audit*`, `*cargo-deny*`, `*cve*`, `*advisory*`, `*dependency*`
+- **Rule:** `security` owns CVE severity and vulnerability triage. `dependency` owns SBOM completeness, unused dep detection, dep health assessment, version pinning, and licence-tier classification. `code` owns dependency bloat and toolchain currency. If security and dependency both flag the same CVE, keep `security`'s severity. If dependency and code both flag the same dep as unhealthy, keep `dependency`'s version.
+- **Fingerprint pattern:** `*cargo-audit*`, `*cargo-deny*`, `*cve*`, `*advisory*`, `*dependency*`, `*unused_dep*`, `*sbom*`, `*lockfile*`, `*pinning*`
+
+### Licence Classification
+- **Primary:** `dependency-tomographe`
+- **Secondary:** `compliance-tomographe`
+- **Rule:** `dependency` owns per-dep licence identification and tier classification (copyleft, restricted, permissive). `compliance` owns policy-level licence decisions (acceptable risk, export control). If both flag the same dep's licence, keep `dependency`'s classification and `compliance`'s policy verdict.
+- **Fingerprint pattern:** `*licence*`, `*license*`, `*copyleft*`, `*gpl*`, `*agpl*`, `*attribution*`, `*notice*`
 
 ### Health Endpoints
 - **Primary:** `observability-tomographe`

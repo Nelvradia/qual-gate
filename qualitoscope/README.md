@@ -1,10 +1,10 @@
 # qualitoscope/
 
-**Pure orchestrator for all qual-gate quality instruments.** Delegates to 12 domain tomographes (under `instruments/`), resolves finding overlaps, cross-correlates across instruments, computes S14 (Overall Summary), produces unified DR reports, and tracks project health trends. Does not perform domain scanning itself — every finding originates from a delegated instrument.
+**Pure orchestrator for all qual-gate quality instruments.** Delegates to 13 domain tomographes (under `instruments/`), resolves finding overlaps, cross-correlates across instruments, computes S14 (Overall Summary), produces unified DR reports, and tracks project health trends. Does not perform domain scanning itself — every finding originates from a delegated instrument.
 
 **Covers DR Section:** S14 (Overall Summary — aggregated from all instruments)
 
-**Delegates to:** All 12 domain instruments covering S1–S13, K1–K4
+**Delegates to:** All 13 domain instruments covering S1–S13, K1–K4
 
 ---
 
@@ -43,7 +43,7 @@
 
 ## Phase 1 — Instrument Inventory
 
-**Goal:** Verify all 12 instruments are present, correctly structured, and have valid configuration.
+**Goal:** Verify all 13 instruments are present, correctly structured, and have valid configuration.
 
 ### Instrument Registry
 
@@ -61,6 +61,7 @@
 | I10 | `performance-tomographe` | S10 (Performance) | `instruments/performance-tomographe/` | qual-gate |
 | I11 | `ux-tomographe` | S11 (UX) | `instruments/ux-tomographe/` | qual-gate |
 | I12 | `ai-ml-tomographe` | AI/ML Quality (new dimension) | `instruments/ai-ml-tomographe/` | qual-gate |
+| I13 | `dependency-tomographe` | S12, S5 (Licensing, Supply Chain) | `instruments/dependency-tomographe/` | qual-gate |
 
 ### Steps
 
@@ -69,7 +70,7 @@
 for inst in architecture-tomographe test-tomographe code-tomographe documentation-tomographe \
   compliance-tomographe data-tomographe deployment-tomographe \
   observability-tomographe security-tomographe performance-tomographe \
-  ux-tomographe ai-ml-tomographe; do
+  ux-tomographe ai-ml-tomographe dependency-tomographe; do
   if [ -d "instruments/$inst" ]; then
     echo "OK: instruments/$inst"
   else
@@ -80,7 +81,8 @@ done
 # Verify each instrument has required structure
 for inst in code-tomographe documentation-tomographe compliance-tomographe \
   data-tomographe deployment-tomographe observability-tomographe \
-  security-tomographe performance-tomographe ux-tomographe ai-ml-tomographe; do
+  security-tomographe performance-tomographe ux-tomographe ai-ml-tomographe \
+  dependency-tomographe; do
   echo "--- instruments/$inst ---"
   [ -f "instruments/$inst/README.md" ]      && echo "  README.md: OK"      || echo "  README.md: MISSING"
   [ -f "instruments/$inst/config.yaml" ]    && echo "  config.yaml: OK"    || echo "  config.yaml: MISSING"
@@ -92,7 +94,8 @@ done
 # Validate config.yaml files parse correctly
 for inst in code-tomographe compliance-tomographe data-tomographe \
   deployment-tomographe documentation-tomographe observability-tomographe \
-  security-tomographe performance-tomographe ux-tomographe ai-ml-tomographe; do
+  security-tomographe performance-tomographe ux-tomographe ai-ml-tomographe \
+  dependency-tomographe; do
   yq '.' "instruments/$inst/config.yaml" > /dev/null 2>&1 \
     && echo "OK: instruments/$inst/config.yaml" \
     || echo "INVALID YAML: instruments/$inst/config.yaml"
@@ -114,9 +117,9 @@ done
 ```json
 {
   "timestamp": "ISO-8601",
-  "instruments_expected": 12,
-  "instruments_found": 12,
-  "instruments_valid": 12,
+  "instruments_expected": 13,
+  "instruments_found": 13,
+  "instruments_valid": 13,
   "details": [
     {
       "id": "I01",
@@ -154,7 +157,7 @@ done
 for inst in architecture-tomographe test-tomographe code-tomographe documentation-tomographe \
   compliance-tomographe data-tomographe deployment-tomographe \
   observability-tomographe security-tomographe performance-tomographe \
-  ux-tomographe ai-ml-tomographe; do
+  ux-tomographe ai-ml-tomographe dependency-tomographe; do
 
   latest="output/${YYYYMMDD}_${PROJECT_NAME}/${inst}-latest.json"
   if [ -f "$latest" ]; then
@@ -177,7 +180,7 @@ For each instrument that needs to run:
 5. Record the instrument's findings in the Qualitoscope's working set
 
 **Parallel execution:** Instruments are independent — up to 5 can be delegated concurrently using sub-agents. Group by estimated run time:
-- Fast (static analysis): code, documentation, compliance, deployment (~2-3 min each)
+- Fast (static analysis): code, documentation, compliance, deployment, dependency (~2-3 min each)
 - Medium (data inspection): data, observability, AI/ML (~5-10 min each)
 - Slow (live testing): security, performance, UX, test (~10-20 min each)
 
@@ -195,8 +198,8 @@ For each instrument that needs to run:
 {
   "timestamp": "ISO-8601",
   "mode": "full|dr|targeted",
-  "instruments_invoked": 12,
-  "instruments_succeeded": 12,
+  "instruments_invoked": 13,
+  "instruments_succeeded": 13,
   "instruments_failed": 0,
   "instruments_cached": 0,
   "details": [
@@ -492,14 +495,14 @@ score = 1.0
 | S2 Documentation | I04 `documentation-tomographe` | — | Doc inventory, staleness, cross-refs |
 | S3 Code Quality | I03 `code-tomographe` | — | fmt, clippy, complexity, duplication |
 | S4 Validation | I02 `test-tomographe` | — | Test coverage, health, alignment |
-| S5 Security | I09 `security-tomographe` | I12 `ai-ml-tomographe` | AI threats from I12 feed into S5 |
+| S5 Security | I09 `security-tomographe` | I12 `ai-ml-tomographe`, I13 `dependency-tomographe` | AI threats from I12, supply chain from I13 |
 | S6 Configuration | I05 `compliance-tomographe` | — | Config validation, env management |
 | S7 Observability | I08 `observability-tomographe` | — | Metrics, alerting, logging, dashboards |
 | S8 Data Management | I06 `data-tomographe` | — | Schema, migrations, privacy, backup |
 | S9 Deployment | I07 `deployment-tomographe` | — | CI, reproducibility, rollback, release |
 | S10 Performance | I10 `performance-tomographe` | — | Profiling, benchmarks, resource usage |
 | S11 UX | I11 `ux-tomographe` | — | Components, a11y, personality, flows |
-| S12 Licensing | I05 `compliance-tomographe` | — | License compat, export control |
+| S12 Licensing | I05 `compliance-tomographe` | I13 `dependency-tomographe` | Dep licence matrix from I13, policy from I05 |
 | S13 Maintainability | I03 `code-tomographe` | — | Tech debt, complexity scoring |
 | S14 Overall Summary | Phase 5 output | — | Aggregated from all instruments |
 | K1 Permission System | I05 `compliance-tomographe` | I09 `security-tomographe` | Completeness from I05, correctness from I09 |
@@ -637,7 +640,7 @@ qualitoscope/
 │   ├── 07-delta-analysis.md
 │   └── 08-report.md
 ├── checklists/
-│   ├── instrument-readiness.md        # All 12 instruments present and configured
+│   ├── instrument-readiness.md        # All 13 instruments present and configured
 │   ├── dr-section-mapping.md          # Instrument → DR section mapping
 │   └── overlap-ownership.md           # Ownership rules for shared concerns
 └── templates/
@@ -704,6 +707,9 @@ instruments:
   - id: I12
     name: ai-ml-tomographe
     sections: [AI-ML]
+  - id: I13
+    name: dependency-tomographe
+    sections: [S12, S5]
 
 thresholds:
   verdict:

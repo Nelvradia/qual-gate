@@ -43,6 +43,9 @@ instruments:
   - id: I12
     name: ai-ml-tomographe
     sections: [AI-ML]
+  - id: I13
+    name: dependency-tomographe
+    sections: [S12, S5]
 
 thresholds:
   verdict:

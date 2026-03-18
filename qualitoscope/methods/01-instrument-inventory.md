@@ -1,6 +1,6 @@
 # Phase 1 — Instrument Inventory
 
-Verify all 12 instruments are present, correctly structured, and have valid configuration.
+Verify all 13 instruments are present, correctly structured, and have valid configuration.
 
 ## Inputs
 - Directory listing of project root
