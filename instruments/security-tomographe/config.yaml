@@ -15,12 +15,10 @@ thresholds:
     require_expiry: true
     max_lifetime_hours: 24
 
+# Paths: read from project-profile.yaml in the target project root.
+# Fields used: source_dirs, compose_files, access_control_config, ci_config.
 scope:
-  source_dirs: []                      # adjust to project layout
-  compose_file: docker-compose.yml
-  access_control_config: config/access-control.yaml  # adjust to project layout
-  env_files: [.env, .env.example]
-  ci_config: .gitlab-ci.yml
+  env_files: [.env, .env.example]      # security-specific scan concern
 
 delta:
   # output goes to output/YYYY-MM-DD_{project_name}/ at repo root — set project_name in qualitoscope/config.yaml

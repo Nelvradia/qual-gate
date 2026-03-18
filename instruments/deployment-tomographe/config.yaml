@@ -13,11 +13,8 @@ thresholds:
   release:
     version_files_exist: true
     changelog_exists: true
-scope:
-  ci_config: .gitlab-ci.yml          # default; update for GitHub Actions, Jenkins, CircleCI, etc.
-  compose_files: [docker-compose.yml, docker-compose.ci.yml]
-  version_files: []                  # list component VERSION files, e.g. [service/VERSION, auth/VERSION]
-  operations_docs: docs/operations/
+# Paths: read from project-profile.yaml in the target project root.
+# Fields used: ci_config, compose_files, version_files, operations_docs.
 
 delta:
   # output goes to output/YYYY-MM-DD_{project_name}/ at repo root — set project_name in qualitoscope/config.yaml

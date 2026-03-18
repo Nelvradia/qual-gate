@@ -17,12 +17,9 @@ thresholds:
     dependency_checks: [db]          # list health check dependencies
   audit:
     required_events: [auth_success, auth_failure, action_blocked, device_pair]
-scope:
-  source_dirs: []                        # list source directories to scan, e.g. [src/, lib/]
-  metrics_source_dirs: []                # dirs containing metric registration; subset of source_dirs
-  metrics_doc: docs/metrics-registry.md
-  alert_rules: config/prometheus/
-  dashboards: config/grafana/dashboards/
+# Paths: read from project-profile.yaml in the target project root.
+# Fields used: source_dirs, metrics_source_dirs, metrics_doc, alert_rules,
+# dashboards.
 
 delta:
   # output goes to output/YYYY-MM-DD_{project_name}/ at repo root — set project_name in qualitoscope/config.yaml

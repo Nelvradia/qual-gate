@@ -12,13 +12,9 @@ thresholds:
     restore_tested: true
   lifecycle:
     retention_policy_exists: true
-scope:
-  db_dir: src/db/                  # adjust to project layout
-  schema_doc: docs/schema-map.md
-  config_dir: config/
-  backup_scripts: infra/scripts/
-  dr_runbook: docs/operations/disaster-recovery-runbook.md
-  vector_store_url: "http://localhost:6333"  # vector database endpoint
+# Paths: read from project-profile.yaml in the target project root.
+# Fields used: db_dir, schema_map, config_dir, backup_scripts, dr_runbook,
+# vector_store_url.
 
 delta:
   # output goes to output/YYYY-MM-DD_{project_name}/ at repo root — set project_name in qualitoscope/config.yaml
