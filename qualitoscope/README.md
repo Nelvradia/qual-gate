@@ -30,6 +30,7 @@
 
 | Phase | Name | What It Does | Key Inputs |
 |-------|------|-------------|------------|
+| **0** | Auto-Discovery | Detect project stack and generate draft profile (runs only if no profile exists) | Project root file listing, build manifests |
 | **1** | Profile Validation & Instrument Inventory | Validate project profile; verify all instruments are present, configured, and runnable | project-profile.yaml, directory listing, config.yaml validation |
 | **2** | Delegation | Invoke each instrument (or validate freshness of cached output) | Instrument READMEs, cached output JSON |
 | **3** | Overlap Resolution | Deduplicate findings from instruments with shared concerns | Ownership table, instrument outputs |
@@ -41,9 +42,41 @@
 
 ---
 
+## Phase 0 — Auto-Discovery
+
+**Goal:** Detect the target project's technology stack and layout, generate a draft `project-profile.yaml` for user review. Runs only when no profile exists in the target project root.
+
+**Trigger:** `project-profile.yaml` does not exist in the target project root.
+
+**Detection steps** (see `methods/00-auto-discovery.md` for full heuristics):
+1. **Language Detection** — file extensions, build manifests, shebang lines
+2. **Build System Detection** — Cargo.toml, pyproject.toml, package.json, go.mod, CMakeLists.txt
+3. **CI Platform Detection** — .gitlab-ci.yml, .github/workflows/, azure-pipelines.yml, etc.
+4. **Directory Layout** — source dirs, test dirs, docs dir, config dir
+5. **Platform Detection** — Android, iOS, Desktop (Tauri/Electron), containerised
+6. **Convention Detection** — access control config, version files, ADR directories
+7. **Toggle Inference** — permission_system, ai_ml_components, gdpr_scope, ai_act_scope
+
+**Exit behaviour:** Write draft `project-profile.yaml` with confidence tags (`[strict]`, `[heuristic]`, `[guessed]`) and `# VERIFY:` comments. **Halt execution** — user must review and edit the draft before re-running.
+
+**Output:** Draft `project-profile.yaml` in target project root (no output directory files).
+
+### Severity Rules
+
+| Finding | Severity |
+|---------|----------|
+| No profile and Phase 0 generated one | **Observation** |
+| Could not detect any languages | **Critical** (halt) |
+| Detected languages but no build system | **Minor** |
+| Detected conflicting signals | **Observation** |
+
+---
+
 ## Phase 1 — Profile Validation & Instrument Inventory
 
 **Goal:** Validate the target project's profile, then verify all 13 instruments are present, correctly structured, and have valid configuration.
+
+Phase 1 assumes a validated `project-profile.yaml` exists. If Phase 0 ran and halted, Phase 1 will not execute until the user reviews the draft profile and re-runs.
 
 ### Instrument Registry
 
@@ -656,6 +689,7 @@ qualitoscope/
 ├── README.md                          # This file
 ├── config.yaml                        # Orchestration config
 ├── methods/
+│   ├── 00-auto-discovery.md
 │   ├── 01-instrument-inventory.md
 │   ├── 02-delegation.md
 │   ├── 03-overlap-resolution.md

@@ -1,5 +1,8 @@
 # Phase 1 — Profile Validation & Instrument Inventory
 
+Phase 1 requires `project-profile.yaml` to exist. If absent, Phase 0 should have run first.
+If Phase 0 was skipped and no profile exists, Phase 1 reports a Critical finding (profile missing).
+
 Validate the target project's profile, then verify all 13 instruments are present, correctly structured, and have valid configuration.
 
 ## Inputs
