@@ -136,6 +136,11 @@ Expected patterns are defined in config.yaml per module.
 4. Check for component isolation: if two components are declared independent, verify neither imports the other's internal modules.
 5. Check for raw data access in the wrong layer (e.g. SQL strings or ORM calls outside the designated persistence module).
 
+**Note:** Component isolation checks (item 4) are conditional on the project profile.
+When `architecture.entry_points` declares multiple independent services, verify they
+do not import each other's internals. When `toggles.permission_system` is true, verify
+access control checks are not bypassed.
+
 ### Accelerator tools (optional)
 
 ```bash
@@ -148,8 +153,16 @@ find src/ -name '*.go' -exec wc -l {} \; 2>/dev/null | sort -rn | head -20
 grep -rn 'axum\|hyper\|StatusCode\|Json<' src/db/ --include='*.rs' 2>/dev/null
 grep -rn 'rusqlite\|SqlitePool\|Connection' src/api/ --include='*.rs' 2>/dev/null
 
-# Rust — raw SQL outside db layer
-grep -rn 'SELECT\|INSERT\|UPDATE\|DELETE\|CREATE TABLE' src/component/ --include='*.rs' 2>/dev/null
+# Python — transport types leaking into persistence layer
+grep -rn 'FastAPI\|Request\|Response\|HTTPException' src/db/ --include='*.py' 2>/dev/null
+grep -rn 'sqlalchemy\|cursor\|execute(' src/api/ --include='*.py' 2>/dev/null
+
+# Go — transport types leaking into persistence layer
+grep -rn 'http\.\|gin\.\|echo\.' internal/db/ --include='*.go' 2>/dev/null
+grep -rn 'sql\.\|gorm\.\|pgx\.' internal/api/ --include='*.go' 2>/dev/null
+
+# Raw data access outside persistence layer (adjust paths per project)
+grep -rn 'SELECT\|INSERT\|UPDATE\|DELETE\|CREATE TABLE' src/api/ src/service/ --include='*.rs' --include='*.py' --include='*.go' 2>/dev/null
 ```
 
 ### Severity Rules
@@ -228,6 +241,11 @@ Compile all findings into `output/YYYY-MM-DD_{project_name}/AR{n}-architecture.m
 ## Configuration
 
 This instrument reads project-specific paths from `project-profile.yaml` in the target project root. If a profile field is absent, the default from the profile schema applies. Instrument-specific thresholds remain in this instrument's `config.yaml`.
+
+Profile fields that drive this instrument's checks:
+- `architecture.layers` — drives layer boundary violation checks (Phase 2, Phase 4)
+- `architecture.entry_points` — drives component independence checks (Phase 4)
+- `toggles.permission_system` — enables access control bypass detection (Phase 4)
 
 ---
 
