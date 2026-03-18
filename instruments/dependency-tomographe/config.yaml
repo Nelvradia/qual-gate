@@ -1,0 +1,56 @@
+thresholds:
+  usage:
+    unused_direct_deps_max: 0
+    dev_dep_in_release_max: 0
+    undeclared_imports_max: 0
+
+  licensing:
+    # Any dep in these licence tiers triggers Critical immediately
+    critical_licences: [AGPL-3.0, AGPL-3.0-only, AGPL-3.0-or-later, GPL-2.0, GPL-2.0-only,
+                        GPL-2.0-or-later, GPL-3.0, GPL-3.0-only, GPL-3.0-or-later,
+                        SSPL-1.0, BUSL-1.1, Commons-Clause]
+    # These are permitted but require a documented linking/disclosure strategy
+    restricted_licences: [LGPL-2.1, LGPL-2.1-only, LGPL-2.1-or-later,
+                          LGPL-3.0, LGPL-3.0-only, LGPL-3.0-or-later,
+                          MPL-2.0, CDDL-1.0, EUPL-1.2]
+    unknown_licence_max: 0           # zero tolerance
+    attribution_file_required: true  # NOTICE / ATTRIBUTION.md must exist if any permissive deps
+
+  health:
+    unmaintained_deps_max: 0
+    git_sourced_deps_max: 0
+    yanked_versions_max: 0
+    stale_years_threshold: 2         # flag direct deps with no release in N years
+
+  pinning:
+    lockfile_required_for_applications: true
+    wildcard_versions_max: 0
+    unbounded_ranges_max: 0
+    major_version_lag_max: 2         # how many majors behind current is acceptable
+
+  transitive:
+    total_dep_count_warn: 500        # observation threshold — not a blocker
+    duplicate_versions_max: 5        # diamond conflicts
+    vendored_unattributed_max: 0
+    build_time_unpinned_max: 0
+
+scope:
+  # Discovery is automatic — the instrument searches the project for manifests.
+  # List paths to exclude from discovery:
+  exclude:
+    - vendor/
+    - target/
+    - node_modules/
+    - .git/
+    - build/
+    - dist/
+    - __pycache__/
+  # Override if attribution file is in a non-standard location:
+  attribution_files: [NOTICE, NOTICE.md, ATTRIBUTION.md, CREDITS, CREDITS.md]
+  # Directories that indicate vendored/embedded third-party code:
+  vendor_dirs: [vendor/, third_party/, external/, libs/, thirdparty/]
+
+delta:
+  # output goes to output/YYYY-MM-DD_{project_name}/ at repo root — set project_name in qualitoscope/config.yaml
+  output_root: output/
+  keep_runs: 10

@@ -15,11 +15,21 @@ thresholds:
     eval_pairs_min: 50
     recall_at_10: 0.80
     mrr_min: 0.60
+  routing:
+    accuracy_min: 0.90
+    dataset_min: 100
   calibration:
     data_points_min: 100
 scope:
   golden_dir: tests/fixtures/golden/
-  rag_eval_dir: tests/fixtures/rag_eval/
+  rag_eval_dir: tests/fixtures/rag_eval/   # adjust to project layout
+  routing_dataset: tests/fixtures/routing/labeled_requests.jsonl
   eval_script: scripts/evaluate_extractions.py
-  soul_files: []
-  qdrant_url: "http://localhost:6333"
+  personality_files: []                    # paths to AI behaviour configuration files
+  vector_store_url: "http://localhost:6333"  # vector database endpoint
+  source_dirs: []                          # source directories to scan — leave empty to search project root
+
+delta:
+  # output goes to output/YYYY-MM-DD_{project_name}/ at repo root — set project_name in qualitoscope/config.yaml
+  output_root: output/
+  keep_runs: 10

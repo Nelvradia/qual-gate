@@ -1,7 +1,7 @@
 thresholds:
   fmt_violations: 0
-  clippy_warnings_max: 20
-  clippy_errors_max: 0
+  linter_errors_max: 0
+  linter_warnings_max: 20
   function_length_soft: 50
   function_length_hard: 100
   file_length_soft: 300
@@ -11,7 +11,10 @@ thresholds:
   todo_major: 50
   dead_functions_max: 10
 scope:
-  rust_dirs: [daemon/src/, enforcer/src/, watchdog/src/, apps/desktop/src-tauri/src/]
-  ts_dirs: [apps/desktop/src/]
-  kotlin_dirs: [apps/android/]
+  source_dirs: []              # fill in per project, e.g. [src/, lib/]
   exclude: [vendor/, target/, node_modules/]
+
+delta:
+  # output goes to output/YYYY-MM-DD_{project_name}/ at repo root — set project_name in qualitoscope/config.yaml
+  output_root: output/
+  keep_runs: 10

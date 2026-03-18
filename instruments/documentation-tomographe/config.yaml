@@ -15,4 +15,9 @@ scope:
   glossary_script: infra/scripts/lint_glossary.py
   schema_map: docs/schema-map.md
   metrics_doc: docs/metrics-registry.md
-  access_control_config: config/access-control.yaml
+  access_control_config: config/access-control.yaml  # adjust to project layout
+
+delta:
+  # output goes to output/YYYY-MM-DD_{project_name}/ at repo root — set project_name in qualitoscope/config.yaml
+  output_root: output/
+  keep_runs: 10

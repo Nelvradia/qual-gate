@@ -42,43 +42,49 @@
 
 **Goal:** Build a complete map of every UI component, screen, and interaction surface across all target platforms.
 
-### Android (Kotlin / Jetpack Compose)
+### LLM steps
+
+1. Discover what UI framework(s) are present by reading source files in `ui_source_dirs`: look for component definitions, widget patterns, view declarations, or JSX/TSX syntax.
+2. Build an inventory of UI components: screens/pages, reusable components, navigation structure.
+3. Note the framework(s) found — this informs which accelerator patterns are relevant in subsequent phases.
+
+### Accelerator tools (optional)
 
 ```bash
+# Android / Compose (if available)
 # Find all Composable functions
-grep -rn '@Composable' apps/android/ --include='*.kt' | grep 'fun ' | \
+grep -rn '@Composable' <android_src> --include='*.kt' | grep 'fun ' | \
   sed 's/.*fun \([A-Za-z]*\).*/\1/' | sort -u
 
 # Find all screens/routes
-grep -rn 'NavHost\|composable(\|navigation(' apps/android/ --include='*.kt'
+grep -rn 'NavHost\|composable(\|navigation(' <android_src> --include='*.kt'
 
 # Find all ViewModels
-grep -rn 'class.*ViewModel' apps/android/ --include='*.kt'
+grep -rn 'class.*ViewModel' <android_src> --include='*.kt'
 
 # Find all UI state classes
-grep -rn 'data class.*State\|sealed.*UiState\|sealed.*Event' apps/android/ --include='*.kt'
+grep -rn 'data class.*State\|sealed.*UiState\|sealed.*Event' <android_src> --include='*.kt'
 
 # Count composables by directory
-find apps/android/ -name '*.kt' -exec grep -l '@Composable' {} \; | \
+find <android_src> -name '*.kt' -exec grep -l '@Composable' {} \; | \
   sed 's|/[^/]*$||' | sort | uniq -c | sort -rn
 ```
 
-### Desktop (React / TypeScript)
-
 ```bash
+# React / Web (if available)
 # Find all React components
-grep -rn 'export.*function\|export default\|export const.*=' apps/desktop/src/ \
+grep -rn 'export.*function\|export default\|export const.*=' <web_src> \
   --include='*.tsx' --include='*.jsx' | grep -v 'test\|spec' | \
   sed 's/.*export[^:]*\(function\|const\|default\) \([A-Za-z]*\).*/\2/' | sort -u
 
 # Find all route definitions
-grep -rn 'Route\|path:' apps/desktop/src/ --include='*.tsx' | head -20
+grep -rn 'Route\|path:' <web_src> --include='*.tsx' | head -20
 
 # Find all hooks (custom state management)
-grep -rn 'function use[A-Z]\|const use[A-Z]' apps/desktop/src/hooks/ --include='*.ts'
+grep -rn 'function use[A-Z]\|const use[A-Z]' <web_src>/hooks/ --include='*.ts'
 
 # Count components by directory
-find apps/desktop/src/ -name '*.tsx' | sed 's|/[^/]*$||' | sort | uniq -c | sort -rn
+find <web_src> -name '*.tsx' | sed 's|/[^/]*$||' | sort | uniq -c | sort -rn
 ```
 
 ### Output Schema
@@ -123,37 +129,44 @@ find apps/desktop/src/ -name '*.tsx' | sed 's|/[^/]*$||' | sort | uniq -c | sort
 | **Dashboard / Summary** | _project-specific_ | _project-specific_ | _project-specific_ |
 | **Reconnection** | _project-specific_ | _project-specific_ | _project-specific_ |
 
-### Per-Flow Audit
+### LLM steps
 
-For each flow, check:
+1. Read UI component source files for each flow listed above.
+2. For each interactive element (buttons, forms, navigation, gestures): verify it has defined states — enabled, disabled, loading, error. This is universal regardless of framework.
+3. Verify that async operations (network requests, file loading) show a loading state and handle errors visibly. A user must never see a blank, frozen, or silently failed UI.
+4. Look for hardcoded delays or animations with no respect for system accessibility settings (reduced motion, etc.).
+
+### Accelerator tools (optional)
 
 ```bash
-# 1. Happy path completeness
-# Does the code handle the full success scenario?
-# Read the screen/component file and trace the state machine
+# All platforms — search for state-handling patterns in the relevant source dirs
+# Adapt file extensions to the framework found in Phase 1
 
-# 2. Error states
+# Error states
 grep -n 'error\|Error\|catch\|onError\|onFailure' <file> | head -20
 # Check: Are errors shown to the user? Are they actionable?
 
-# 3. Loading states
+# Loading states
 grep -n 'loading\|Loading\|isLoading\|progress\|Progress' <file>
 # Check: Is there feedback while waiting? Spinner? Skeleton?
 
-# 4. Empty states
+# Empty states
 grep -n 'empty\|Empty\|no.*data\|no.*message' <file>
 # Check: What shows when there's no data? Is it helpful?
 
-# 5. Offline handling
+# Offline handling
 grep -n 'offline\|Offline\|disconnect\|connectionState' <file>
 # Check: Does the UI degrade gracefully when offline?
+```
 
-# 6. Edge cases
-# - Very long text (10k+ characters)
-# - Rapid repeated actions (double-tap, spam send)
-# - Back navigation mid-flow
-# - Screen rotation (Android)
-# - Window resize (Desktop)
+```bash
+# Android / Kotlin — state pattern examples
+grep -rn 'isLoading\|UiState\|onFailure' <android_src> --include='*.kt'
+```
+
+```bash
+# React / Web — state pattern examples
+grep -rn 'useState\|isLoading\|onError' <web_src> --include='*.tsx' --include='*.ts'
 ```
 
 ### Severity Rules
@@ -174,55 +187,67 @@ grep -n 'offline\|Offline\|disconnect\|connectionState' <file>
 
 **Goal:** Audit for WCAG 2.1 AA compliance across all target platforms.
 
-### Android (Compose)
+### LLM steps
+
+1. Read all UI component files identified in Phase 1.
+2. For each interactive element: verify a semantic accessibility label is present. The mechanism varies by platform but the requirement is universal:
+   - HTML/React: `aria-label`, `aria-labelledby`, semantic elements (`<button>`, `<input>`, `<nav>`)
+   - Android/Compose: `contentDescription`, `semantics { }` modifier
+   - SwiftUI: `.accessibilityLabel()`, `.accessibilityHint()`
+   - Flutter: `Semantics` widget
+3. Check that touch/click targets meet minimum size requirements (44×44pt / 48×48dp is the universal guideline).
+4. Check that text content uses relative sizing (rem/em/sp/dp) not fixed pixels where possible.
+5. Check that colour contrast is not the only visual differentiator for state or meaning.
+
+### Accelerator tools (optional)
 
 ```bash
+# Android / Compose (if available)
 # Content descriptions on interactive elements
-grep -rn 'contentDescription\|semantics {' apps/android/ --include='*.kt' | wc -l
+grep -rn 'contentDescription\|semantics {' <android_src> --include='*.kt' | wc -l
 # vs total interactive elements:
-grep -rn 'clickable\|onClick\|Button\|IconButton' apps/android/ --include='*.kt' | wc -l
+grep -rn 'clickable\|onClick\|Button\|IconButton' <android_src> --include='*.kt' | wc -l
 # Ratio should be close to 1:1
 
 # Touch target sizes (minimum 48dp per Material 3)
-grep -rn 'size.*dp\|Modifier\.size\|\.padding' apps/android/ --include='*.kt' | \
+grep -rn 'size.*dp\|Modifier\.size\|\.padding' <android_src> --include='*.kt' | \
   grep -E '[0-9]+\.dp' | awk -F'[^0-9]' '{for(i=1;i<=NF;i++) if($i+0 < 48 && $i+0 > 0) print NR": "$i"dp — possible undersized target"}'
 
 # Color contrast (static analysis — check for hardcoded colors)
-grep -rn 'Color(0x\|Color(\.' apps/android/ --include='*.kt' | head -20
+grep -rn 'Color(0x\|Color(\.' <android_src> --include='*.kt' | head -20
 # Material 3 theme colors generally pass contrast — custom colors need verification
 
 # Text scaling support
-grep -rn 'sp\|TextUnit' apps/android/ --include='*.kt' | grep -v 'dp' | head -10
+grep -rn 'sp\|TextUnit' <android_src> --include='*.kt' | grep -v 'dp' | head -10
 # Text should use sp (scales with system font size), not dp
 
 # Screen reader traversal order
-grep -rn 'traversalIndex\|semantics.*heading\|clearAndSetSemantics' apps/android/ --include='*.kt'
+grep -rn 'traversalIndex\|semantics.*heading\|clearAndSetSemantics' <android_src> --include='*.kt'
 ```
 
-### Desktop (React)
-
 ```bash
+# React / Web (if available)
 # ARIA labels and roles
-grep -rn 'aria-label\|aria-role\|role=' apps/desktop/src/ --include='*.tsx' | wc -l
+grep -rn 'aria-label\|aria-role\|role=' <web_src> --include='*.tsx' | wc -l
 # vs total interactive elements:
-grep -rn 'onClick\|onKeyDown\|<button\|<a ' apps/desktop/src/ --include='*.tsx' | wc -l
+grep -rn 'onClick\|onKeyDown\|<button\|<a ' <web_src> --include='*.tsx' | wc -l
 
 # Alt text on images
-grep -rn '<img' apps/desktop/src/ --include='*.tsx' | grep -v 'alt='
+grep -rn '<img' <web_src> --include='*.tsx' | grep -v 'alt='
 
 # Keyboard navigation
-grep -rn 'onKeyDown\|onKeyUp\|tabIndex\|focus\|autoFocus' apps/desktop/src/ --include='*.tsx' | wc -l
+grep -rn 'onKeyDown\|onKeyUp\|tabIndex\|focus\|autoFocus' <web_src> --include='*.tsx' | wc -l
 
 # Focus management (modal dialogs should trap focus)
-grep -rn 'FocusTrap\|focus.*trap\|createFocusTrap' apps/desktop/src/ --include='*.tsx'
+grep -rn 'FocusTrap\|focus.*trap\|createFocusTrap' <web_src> --include='*.tsx'
 
 # Color contrast (check for hardcoded colors vs CSS variables)
-grep -rn 'color:\|background:\|border-color:' apps/desktop/src/ --include='*.css' --include='*.tsx' | \
+grep -rn 'color:\|background:\|border-color:' <web_src> --include='*.css' --include='*.tsx' | \
   grep '#\|rgb\|hsl' | grep -v 'var(--' | head -20
 # Hardcoded colors need contrast verification
 
 # Reduced motion support
-grep -rn 'prefers-reduced-motion\|reduceMotion' apps/desktop/src/ --include='*.css' --include='*.tsx'
+grep -rn 'prefers-reduced-motion\|reduceMotion' <web_src> --include='*.css' --include='*.tsx'
 ```
 
 ### Checklist
@@ -269,14 +294,20 @@ grep -rn 'prefers-reduced-motion\|reduceMotion' apps/desktop/src/ --include='*.c
 
 **Goal:** Verify the AI personality system renders correctly across contexts and roles.
 
-### Static Analysis
+### LLM steps
+
+1. Read all user-visible strings, labels, button text, and error messages found in `ui_source_dirs` and `personality_files`.
+2. Assess tone consistency: formal vs casual, active vs passive, concise vs verbose. Flag inconsistencies between screens or components.
+3. Check for error messages that expose technical internals to users (stack traces, internal identifiers, raw exception text).
+4. If a personality spec or design guidelines file exists in config `personality_files`, compare the rendered strings against it.
+
+### Accelerator tools (optional)
 
 ```bash
-# AI behaviour configuration files location and content
+# AI behaviour configuration files
 find . -name '*.md' -path '*/personality/*' -o -name '*system-prompt*' 2>/dev/null
-# Check personality/system prompt configuration files for content
 
-# Role definitions in code
+# Role definitions in code — adapt extensions to the framework found in Phase 1
 grep -rn 'role\|Role\|personality\|persona' \
   src/ --include='*.rs' --include='*.py' --include='*.ts' | head -20
 
@@ -291,9 +322,11 @@ grep -rn 'confidence\|Confidence\|certainty\|unsure\|I.m not sure\|I believe' \
 # Signature phrases
 grep -rn 'signature\|catchphrase' src/ config/ --include='*.rs' --include='*.py' --include='*.yaml'
 
-# AI bubble rendering (AI's inline voice in UI)
-grep -rn 'ai.*bubble\|ai.*message\|chat.*bubble' \
-  apps/ --include='*.kt' --include='*.tsx'
+# Android / Compose — string literals in UI
+grep -rn 'stringResource\|text = "' <android_src> --include='*.kt' | head -30
+
+# React / Web — string literals in UI
+grep -rn 'children\|label\|placeholder\|aria-label' <web_src> --include='*.tsx' | head -30
 ```
 
 ### Personality Evaluation Checklist
@@ -313,33 +346,42 @@ grep -rn 'ai.*bubble\|ai.*message\|chat.*bubble' \
 
 **Goal:** Assess the quality of AI-generated responses as rendered in the UI.
 
-### Static Analysis
+### LLM steps
+
+1. Identify components responsible for rendering formatted content (markdown, code, rich text) across all platforms found in Phase 1.
+2. Check that code blocks use monospace fonts and syntax highlighting where appropriate.
+3. Check that long content is not truncated without user control (scroll, expand, pagination).
+4. Check that content rendering is consistent across platforms (if multiple platforms exist).
+
+### Accelerator tools (optional)
 
 ```bash
+# All platforms — adapt extensions to the framework found in Phase 1
+
 # Markdown rendering
 grep -rn 'markdown\|Markdown\|renderMarkdown\|MarkdownText' \
-  apps/ --include='*.kt' --include='*.tsx'
+  <ui_source_dirs> --include='*.kt' --include='*.tsx'
 # Check: Does the UI render markdown correctly? Bold, code blocks, lists, links?
 
 # Code block rendering
 grep -rn 'code.*block\|syntax.*highlight\|CodeBlock\|pre>' \
-  apps/ --include='*.kt' --include='*.tsx'
+  <ui_source_dirs> --include='*.kt' --include='*.tsx'
 
 # Structured response rendering (tables, summaries, cards)
 grep -rn 'Table\|StructuredView\|CardView\|SummaryCard' \
-  apps/ --include='*.kt' --include='*.tsx'
+  <ui_source_dirs> --include='*.kt' --include='*.tsx'
 
 # Typing indicator / streaming
 grep -rn 'typing\|streaming\|isTyping\|StreamingText\|chunk' \
-  apps/ --include='*.kt' --include='*.tsx'
+  <ui_source_dirs> --include='*.kt' --include='*.tsx'
 
 # Message timestamp display
 grep -rn 'timestamp\|timeAgo\|DateFormat\|formatDate\|relative.*time' \
-  apps/ --include='*.kt' --include='*.tsx'
+  <ui_source_dirs> --include='*.kt' --include='*.tsx'
 
 # Thread / conversation management
 grep -rn 'thread\|Thread\|conversation.*id\|ConversationList' \
-  apps/ --include='*.kt' --include='*.tsx'
+  <ui_source_dirs> --include='*.kt' --include='*.tsx'
 ```
 
 ### Checklist
@@ -360,18 +402,21 @@ grep -rn 'thread\|Thread\|conversation.*id\|ConversationList' \
 
 **Goal:** Verify all target platforms present the same information and interactions.
 
-### Component Parity Check
+### LLM steps
+
+1. If multiple UI platforms are present (mobile + desktop, web + native, etc.), identify the feature set of each using the inventory from Phase 1.
+2. Compare feature parity: are core user flows available on all platforms?
+3. Check that platform-specific affordances are used correctly (bottom navigation on mobile, menu bar on desktop) rather than slavishly copying one platform's patterns to another.
+
+### Accelerator tools (optional)
 
 ```bash
-# Build component lists from each platform (from Phase 1)
-# Compare: which concepts exist on one platform but not the other
-
-# Platform A components
-PLATFORM_A_COMPONENTS=$(grep -rn '@Composable' apps/android/ --include='*.kt' | \
+# Android / Compose — build component list (if available)
+PLATFORM_A_COMPONENTS=$(grep -rn '@Composable' <android_src> --include='*.kt' | \
   grep 'fun ' | sed 's/.*fun \([A-Za-z]*\).*/\1/' | sort -u)
 
-# Platform B components
-PLATFORM_B_COMPONENTS=$(grep -rn 'export' apps/desktop/src/ --include='*.tsx' | \
+# React / Web — build component list (if available)
+PLATFORM_B_COMPONENTS=$(grep -rn 'export' <web_src> --include='*.tsx' | \
   grep -v 'test\|spec\|type\|interface' | \
   sed 's/.*export[^:]*\(function\|const\|default\) \([A-Za-z]*\).*/\2/' | sort -u)
 
@@ -411,26 +456,33 @@ comm -12 <(echo "$PLATFORM_A_COMPONENTS") <(echo "$PLATFORM_B_COMPONENTS")
 
 **Goal:** Verify the information architecture follows a "depth over breadth" strategy.
 
-### Principles to Verify
+### LLM steps
 
-The AI should function as the primary interface, not merely a chat panel attached to a dashboard. Key progressive disclosure patterns:
+1. Read navigation and screen/page source files identified in Phase 1.
+2. Identify whether complex features are hidden behind progressive disclosure (expandable sections, detail views, advanced settings panels).
+3. Verify primary actions are prominent and secondary actions are accessible but not cluttering the primary interface.
+4. Check that destructive actions (delete, reset) require confirmation and are not placed near common actions.
+
+### Accelerator tools (optional)
 
 ```bash
+# All platforms — adapt extensions to the framework found in Phase 1
+
 # Check for expandable/collapsible sections
 grep -rn 'expand\|collapse\|Accordion\|Expandable\|AnimatedVisibility\|showMore' \
-  apps/ --include='*.kt' --include='*.tsx'
+  <ui_source_dirs> --include='*.kt' --include='*.tsx'
 
 # Check for detail views (tap to see more)
 grep -rn 'NavigateTo\|onClick.*navigate\|detail\|Detail' \
-  apps/ --include='*.kt' --include='*.tsx'
+  <ui_source_dirs> --include='*.kt' --include='*.tsx'
 
 # Check for workspace-distinct layouts (not one-size-fits-all)
 grep -rn 'workspace\|Workspace\|layout.*type\|viewMode' \
-  apps/ --include='*.kt' --include='*.tsx'
+  <ui_source_dirs> --include='*.kt' --include='*.tsx'
 
 # Information hierarchy (headings, sections, nested content)
 grep -rn 'h1\|h2\|h3\|Section\|SectionHeader\|Heading' \
-  apps/ --include='*.kt' --include='*.tsx'
+  <ui_source_dirs> --include='*.kt' --include='*.tsx'
 ```
 
 ### Checklist
@@ -447,7 +499,7 @@ grep -rn 'h1\|h2\|h3\|Section\|SectionHeader\|Heading' \
 
 ## Phase 8 — Report
 
-Compile all phase outputs into `output/YYYY-MM-DD/UXN-ux-tomographe.md`.
+Compile all phase outputs into `output/YYYY-MM-DD_{project_name}/UX{n}-ux-tomographe.md` (see `qualitoscope/config.yaml` for `project_name`).
 
 Include:
 - Component inventory with gap analysis
@@ -514,14 +566,14 @@ thresholds:
     confidence_tiers: 4
 
 scope:
-  platform_a_src: apps/android/
-  platform_b_src: apps/desktop/src/
+  # ui_source_dirs: paths containing UI component source files — the LLM detects the framework
+  ui_source_dirs: []
   personality_files: []                    # Paths to AI behaviour configuration files
   ux_spec: ""                              # Path to UX specification document
   design_docs: []                          # Paths to design documents
 
 delta:
-  output_dir: output/
+  # output goes to output/YYYY-MM-DD_{project_name}/ — see qualitoscope/config.yaml
   keep_runs: 10
 ```
 

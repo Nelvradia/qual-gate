@@ -40,45 +40,43 @@
 
 **Goal:** Identify performance-relevant patterns in the codebase without running anything.
 
-### Steps
+### LLM steps
+
+1. Read all source files handling inbound requests or running as long-lived loops (look for route handlers, server entrypoints, background workers, message consumers).
+2. Identify blocking operations in async or concurrent contexts — the pattern varies by language but the concept is universal:
+   - **Rust:** `std::thread::sleep`, `std::fs::read`/`write` in async functions (should be `tokio::time::sleep`, `tokio::fs` equivalents)
+   - **Python:** `time.sleep()` inside `async def` functions (should be `asyncio.sleep()`), blocking file I/O in coroutines (should use `aiofiles` or run in executor)
+   - **Go:** long-running synchronous calls inside goroutines without proper channel/context handling
+   - **Node/TypeScript:** synchronous fs calls (`readFileSync`, `writeFileSync`, `execSync`) inside async handlers
+3. Identify excessive object allocation or copying in hot paths: per-request allocation of large objects, deep cloning in request handlers, large serialisation operations on every request.
+4. Identify lock contention points: mutexes, semaphores, or shared mutable state accessed frequently — note whether the lock type is appropriate for the runtime (e.g., async-aware vs OS-level locks).
+5. Identify database connection handling: are connections opened per-request (bad) or pooled (good)?
+6. Check that LLM/AI client calls have configurable timeouts.
+
+### Accelerator tools (optional)
 
 ```bash
-# Async boundaries — find blocking calls in async context
-grep -rn 'std::thread::sleep\|std::fs::\|std::io::Read' src/ --include='*.rs'
-# These should be tokio equivalents in async code
+# Rust (if cargo/clippy available)
+grep -rn 'std::thread::sleep\|std::fs::read\|std::fs::write' src/ --include='*.rs'
 
-# Large allocations
-grep -rn 'Vec::new\|String::new\|vec!\[' src/ --include='*.rs' | \
-  grep -v 'test\|#\[test\]' | head -30
-# Look for allocations in hot paths (request handlers, service execution)
+# Python (if available)
+grep -rn 'time\.sleep\|open(' src/ --include='*.py' | grep -v 'asyncio\|aiofiles'
 
-# Clone patterns in hot paths
-grep -rn '\.clone()' src/api/ src/services/ --include='*.rs' | wc -l
+# Node/TypeScript (if available)
+grep -rn 'readFileSync\|writeFileSync\|execSync' src/ --include='*.ts' --include='*.js'
 
-# Mutex contention points
-grep -rn 'Mutex\|RwLock\|Arc<Mutex' src/ --include='*.rs'
-# Tokio mutex vs std mutex in async context
-
-# Database connection pooling
-grep -rn 'pool\|Pool\|connection\|Connection' src/db/ --include='*.rs'
-
-# Serialization in hot paths
-grep -rn 'serde_json::to_string\|serde_json::from_str\|to_vec\|from_slice' \
-  src/api/ src/services/ --include='*.rs' | wc -l
-
-# LLM client timeout configuration
-grep -rn 'timeout\|Timeout\|Duration' src/llm/ --include='*.rs'
+# Go (if available)
+grep -rn 'time\.Sleep\|ioutil\.ReadFile' . --include='*.go'
 ```
 
 ### Checklist
 
-- [ ] No `std::thread::sleep` in async context (use `tokio::time::sleep`)
-- [ ] No blocking filesystem I/O in async handlers (use `tokio::fs`)
-- [ ] Tokio `Mutex` used instead of `std::sync::Mutex` in async code
-- [ ] Database connections pooled (not opened per-request)
-- [ ] LLM client has configurable timeout
-- [ ] No unnecessary `.clone()` in request hot path
-- [ ] Large allocations avoided in per-request code
+- [ ] No blocking I/O in async/concurrent request handlers
+- [ ] Connections to databases and external services are pooled, not opened per request
+- [ ] Per-request code avoids unnecessary large allocations or deep copies
+- [ ] AI/LLM client has configurable timeout
+- [ ] Lock types are appropriate for the runtime (e.g., async-aware locks in async code)
+- [ ] No unnecessary deep cloning or copying in request hot path
 
 ---
 
@@ -86,48 +84,44 @@ grep -rn 'timeout\|Timeout\|Duration' src/llm/ --include='*.rs'
 
 **Goal:** Analyze database schema and query patterns for performance concerns.
 
-### Steps
+### LLM steps
+
+1. Find all files containing SQL queries or ORM definitions — search for SQL keywords (`SELECT`, `INSERT`, `UPDATE`, `DELETE`, `CREATE TABLE`, `CREATE INDEX`) or ORM patterns (model definitions, migration files, schema files, entity annotations).
+2. For each query: check whether frequently filtered columns have corresponding index definitions.
+3. Look for `SELECT` statements without `WHERE` clauses in code that runs on large tables — potential full table scans.
+4. Look for query calls inside loops — N+1 query pattern (a loop that executes one query per iteration rather than a single batched query).
+5. Check that database connections are not opened inline in request handlers — connections should come from a pool or be reused across the request lifecycle.
+6. Check for write-ahead logging or equivalent durability configuration for the database type in use (e.g., `journal_mode=WAL` for SQLite, `synchronous_commit` for PostgreSQL).
+
+### Accelerator tools (optional)
 
 ```bash
-# Table row count estimation (from migration files or schema)
-# List all CREATE TABLE statements
-grep -rn 'CREATE TABLE' src/db/ --include='*.rs' | wc -l
+# Find all SQL in any language
+grep -rn 'SELECT\|INSERT\|UPDATE\|DELETE\|CREATE TABLE\|CREATE INDEX' \
+  . --include='*.py' --include='*.ts' --include='*.go' --include='*.java' \
+  --include='*.rb' --include='*.rs' 2>/dev/null | grep -v '/test'
 
-# Index coverage
-grep -rn 'CREATE INDEX\|CREATE UNIQUE INDEX' src/db/ --include='*.rs'
+# Index coverage across migration/schema files
+grep -rn 'CREATE INDEX\|CREATE UNIQUE INDEX' . 2>/dev/null
 
-# Check for missing indexes on foreign key columns
-# Find all columns ending in _id that aren't indexed
-grep -rn '_id\s' src/db/ --include='*.rs' | grep -v 'CREATE INDEX' | grep 'INTEGER\|TEXT'
+# WAL/durability configuration
+grep -rn 'journal_mode\|WAL\|wal_mode\|synchronous_commit' . 2>/dev/null
 
-# WAL mode configuration
-grep -rn 'journal_mode\|WAL\|wal_mode' src/db/ config/ --include='*.rs' --include='*.yaml'
-
-# Full table scans (SELECT without WHERE or with LIKE '%...%')
-grep -rn 'SELECT.*FROM' src/db/ --include='*.rs' | grep -v 'WHERE' | head -10
-
-# N+1 query patterns (loops containing queries)
-# Look for query calls inside for/while loops
-grep -B5 'execute\|query_row\|query_map' src/db/ --include='*.rs' | grep -E 'for |while '
-
-# Connection handling
-grep -rn 'open_with_flags\|Connection::open' src/db/ --include='*.rs'
-# Should use connection pooling, not open-per-query
-
-# Busy timeout for concurrent access
-grep -rn 'busy_timeout\|busy_handler' src/db/ --include='*.rs'
+# Potential N+1: query calls near loop constructs
+grep -rn 'SELECT\|\.find\|\.query\|\.execute' . 2>/dev/null | \
+  grep -v '/test' | head -30
+# Review manually for loop context
 ```
 
 ### Checklist
 
-- [ ] WAL mode enabled on all databases
-- [ ] Busy timeout configured (>=5000ms for concurrent access)
+- [ ] WAL mode enabled on all databases (or equivalent durability setting)
+- [ ] Busy timeout / connection timeout configured for concurrent access
 - [ ] Indexes on all foreign key columns (`*_id`)
 - [ ] Indexes on frequently filtered columns (created_at, status, domain)
 - [ ] No full table scans in request hot path
 - [ ] No N+1 query patterns
 - [ ] Connection pooling or reuse (not open-per-query)
-- [ ] PRAGMA `synchronous = NORMAL` for WAL mode (not FULL)
 
 ---
 
@@ -135,7 +129,13 @@ grep -rn 'busy_timeout\|busy_handler' src/db/ --include='*.rs'
 
 **Goal:** Measure request latency across key paths. Requires running services.
 
-### Steps
+### LLM steps
+
+Before measuring: review the latency budget table below and identify which endpoints map to which budget lines. Note any endpoints that do not have Prometheus metrics — those will require `curl` timing only.
+
+After measuring: compare each p99/p95 result against the budget. Flag any path that exceeds its target. Identify the single largest contributor to end-to-end latency — that is the primary optimisation candidate.
+
+### Accelerator tools (optional)
 
 ```bash
 # Prerequisites: services running, test client configured
@@ -189,7 +189,13 @@ done | sort -n | awk '
 
 **Goal:** Profile memory usage and detect leaks.
 
-### Steps
+### LLM steps
+
+Before measuring: review the threshold table below. Identify which Docker service names correspond to the primary, secondary, and auxiliary roles for this project — the service names in the `docker stats` output will need to be matched against those roles.
+
+After measuring: check whether the memory timeseries shows a monotonically increasing trend (leak indicator) versus a plateau (acceptable). If VRAM usage is above 90% of the GPU total, flag for model quantisation review or offload configuration.
+
+### Accelerator tools (optional)
 
 ```bash
 # Container memory usage
@@ -203,7 +209,7 @@ ps aux | grep -E 'target_service' | \
 for i in $(seq 1 60); do
   docker stats --no-stream --format "{{.Name}},{{.MemUsage}}"
   sleep 10
-done > output/memory-timeseries.csv
+done > output/YYYY-MM-DD_{project_name}/scratch/performance/memory-timeseries.csv
 
 # VRAM usage (GPU)
 nvidia-smi --query-gpu=memory.used,memory.total,memory.free \
@@ -234,7 +240,13 @@ nvidia-smi --query-compute-apps=pid,used_memory,name \
 
 **Goal:** Measure system behavior under concurrent load.
 
-### Steps
+### LLM steps
+
+Before measuring: check from Phase 1 findings whether any shared mutable state or lock contention was identified. Those are the most likely failure points under concurrent load — pay particular attention to them in the results.
+
+After measuring: if any concurrent requests return non-200 status codes or show significantly elevated latency, cross-reference with Phase 1 lock contention findings and Phase 2 connection pooling findings. Serialised access through a single lock is the most common root cause.
+
+### Accelerator tools (optional)
 
 ```bash
 # Concurrent connections (WebSocket)
@@ -275,7 +287,13 @@ wait
 
 **Goal:** Profile the LLM context window assembly pipeline — the critical path between user message and LLM invocation.
 
-### Steps
+### LLM steps
+
+Before measuring: locate the context assembly code path in the codebase (search for terms like `build_context`, `assemble_prompt`, `context_assembly`, or equivalent). Determine whether timing instrumentation already exists (Prometheus metrics or structured log entries). If it does not, the grep in the accelerator block will confirm.
+
+After measuring: compare each stage's contribution against the budget decomposition table. If total assembly time exceeds 500ms p95, identify the single largest stage — that is where optimisation effort should focus first. RAG retrieval and history loading are the most common bottlenecks.
+
+### Accelerator tools (optional)
 
 ```bash
 # Context assembly components:
@@ -295,9 +313,9 @@ wait
 # <service>_context_token_count_ms
 # <service>_context_total_ms
 
-# If metrics don't exist yet, use structured logging:
-grep -rn 'context_assembl\|build_context\|assemble_prompt' src/ --include='*.rs'
-# Check if timing instrumentation exists
+# If metrics don't exist yet, check whether timing instrumentation exists:
+grep -rn 'context_assembl\|build_context\|assemble_prompt' . \
+  --include='*.py' --include='*.ts' --include='*.go' --include='*.rs' 2>/dev/null
 
 # Token budget analysis
 # How close to limit is the typical assembled context?
@@ -320,7 +338,13 @@ grep -rn 'context_assembl\|build_context\|assemble_prompt' src/ --include='*.rs'
 
 **Goal:** Measure cold-start behavior.
 
-### Steps
+### LLM steps
+
+Before measuring: check whether the service has a documented startup sequence (e.g., model loading, vector index warming, database migration). Understanding the expected sequence helps distinguish a slow-but-correct startup from an actual fault.
+
+After measuring: if any service exceeds its ready threshold, check logs from that service's startup window. The most common causes are synchronous model loading, sequential dependency waiting, or a cold vector index that must be rebuilt on first query.
+
+### Accelerator tools (optional)
 
 ```bash
 # Full stack startup time
@@ -361,7 +385,7 @@ done
 
 ## Phase 8 — Report
 
-Compile all phase outputs into `output/YYYY-MM-DD/PS{n}-performance-tomographe.md`.
+Compile all phase outputs into `output/YYYY-MM-DD_{project_name}/PS{n}-performance-tomographe.md` (see `qualitoscope/config.yaml` for `project_name`).
 
 Include:
 - Latency budget decomposition table
@@ -393,8 +417,7 @@ performance-tomographe/
 │   └── vram-budget.md                 # Per-model VRAM allocation
 ├── templates/
 │   └── report-template.md
-├── output/
-│   └── .gitignore
+# output is centralised — see output/YYYY-MM-DD_{project_name}/
 └── fixes/
     └── README.md
 ```

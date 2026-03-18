@@ -1,2 +1,2 @@
-# Phase — access control coverage
+# Phase 05 — Version Pinning
 See README.md for full methodology.

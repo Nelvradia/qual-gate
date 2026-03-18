@@ -18,4 +18,4 @@ Detect blocking operations in async context — the #1 performance killer in Tok
 - [ ] Connection pooling for database and HTTP clients
 - [ ] Avoid unnecessary `.clone()` in request handlers
 - [ ] Buffer sizes appropriate (not too large for small messages)
-- [ ] Timeouts set on all external calls (LLM, Qdrant, HTTP)
+- [ ] Timeouts set on all external calls (LLM, vector database, HTTP)

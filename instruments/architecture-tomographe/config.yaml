@@ -5,24 +5,30 @@ thresholds:
   god_module_dependents: 5
   max_fan_out: 10
   skill_cross_import: 0
-  enforcer_bypass: 0
+  authorization_bypass: 0
   drift_items_major: 0
   drift_items_minor: 5
   evolution_score_green: 0.80
   evolution_score_yellow: 0.60
 scope:
-  rust_crates: [core/daemon, core/enforcer, core/watchdog, core/common]
-  desktop_crate: [desktop/src-tauri]
+  # source_dirs: paths to source code roots — the LLM discovers module structure within these
+  source_dirs: []
   doc_sources: [CLAUDE.md, docs/four-pillars/, .claude/decisions/]
   exclude: [vendor/, target/, node_modules/]
 layers:
-  daemon:
-    allowed: api -> skill -> db
-    violations:
-      - db -> skill
-      - db -> api
-      - skill -> api
-  enforcer:
-    independent_of: [daemon, watchdog]
-  watchdog:
-    independent_of: [daemon, enforcer]
+  # Define layer rules per component. Example:
+  # primary_service:
+  #   allowed: api -> handler -> db
+  #   violations:
+  #     - db -> handler
+  #     - db -> api
+  #     - handler -> api
+  # authorization_service:
+  #   independent_of: [primary_service, health_monitor]
+  # health_monitor:
+  #   independent_of: [primary_service, authorization_service]
+
+delta:
+  # output goes to output/YYYY-MM-DD_{project_name}/ at repo root — set project_name in qualitoscope/config.yaml
+  output_root: output/
+  keep_runs: 10

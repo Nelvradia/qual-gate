@@ -187,10 +187,8 @@ shared_secret = session
 # Research DB comments
 sources per session
 #
-# === Enforcer qualified usage ===
-enforcer_domain
+# === Access control qualified usage ===
 action_domain
-skill_domain
 #
 # === RAG / ingest patterns ===
 domain.into

@@ -1,2 +1,2 @@
-# Phase — access control coverage
+# Phase 04 — Dependency Health
 See README.md for full methodology.

@@ -5,7 +5,7 @@ thresholds:
     naming_convention: "<project>_"
   alerting:
     min_alert_rules: 8
-    required_alerts: [DaemonDown, EnforcerDown, WatchdogDown, HighMemoryUsage, DiskSpaceLow]
+    required_alerts: [ServiceDown, HighMemoryUsage, DiskSpaceLow]  # adjust alert names to project
   logging:
     sensitive_data_in_logs: 0
     json_format: true
@@ -14,12 +14,17 @@ thresholds:
     orphan_metrics_max: 5
   health:
     endpoints: ["/health"]
-    dependency_checks: [db, enforcer]
+    dependency_checks: [db]          # list health check dependencies
   audit:
     required_events: [auth_success, auth_failure, action_blocked, device_pair]
 scope:
-  metrics_file: daemon/src/metrics.rs
+  source_dirs: []                        # list source directories to scan, e.g. [src/, lib/]
+  metrics_source_dirs: []                # dirs containing metric registration; subset of source_dirs
   metrics_doc: docs/metrics-registry.md
   alert_rules: config/prometheus/
   dashboards: config/grafana/dashboards/
-  api_dir: daemon/src/api/
+
+delta:
+  # output goes to output/YYYY-MM-DD_{project_name}/ at repo root — set project_name in qualitoscope/config.yaml
+  output_root: output/
+  keep_runs: 10

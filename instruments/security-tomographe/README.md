@@ -40,29 +40,36 @@
 
 **Goal:** Identify known vulnerabilities in all project dependencies.
 
-### Steps
+### LLM steps
+
+1. Discover which package managers are present in the project by reading manifest files: `Cargo.toml`, `package.json`, `pyproject.toml`, `go.mod`, `pom.xml`, `build.gradle`, `Gemfile`, `composer.json`, and any others present at the project root or in subdirectories.
+2. For each ecosystem found, note what advisory database applies: RustSec for Rust, npm advisories for Node, PyPA advisory DB for Python, OSV for Go/Java, and so on.
+3. Read the relevant lockfiles (`Cargo.lock`, `package-lock.json`, `yarn.lock`, `poetry.lock`, `go.sum`, etc.) and identify any dependency versions flagged as vulnerable in publicly known advisories — if you have knowledge of the dependency and version, reason about known CVEs.
+4. Note any Docker images referenced in `docker-compose.yml` or Dockerfiles — check whether they are pinned by digest (`sha256:...`) or only by tag.
+
+> **Note:** For full dependency lifecycle analysis (unused deps, licence risk, health), see the dependency-tomographe. This phase focuses on known CVEs only.
+
+### Accelerator tools (optional)
 
 ```bash
-# Rust dependencies
-cargo audit 2>&1 | tee output/cargo-audit-raw.txt
-# Count: advisories, warnings, unmaintained crates
+# Rust
+cargo audit 2>&1 | tee output/YYYY-MM-DD_{project_name}/scratch/security/cargo-audit-raw.txt
 cargo audit --json 2>/dev/null | jq '.vulnerabilities.count, .warnings | length'
 
-# Python dependencies
-pip audit --format=json 2>/dev/null > output/pip-audit-raw.json
+# Python
+pip audit --format=json 2>/dev/null > output/YYYY-MM-DD_{project_name}/scratch/security/pip-audit-raw.json
 # Fallback if pip-audit not installed:
 pip list --outdated --format=json 2>/dev/null
 
-# Node.js / React frontend
-cd apps/desktop && npm audit --json 2>/dev/null > ../../output/npm-audit-raw.json
+# Node.js
+cd apps/desktop && npm audit --json 2>/dev/null > ../../output/YYYY-MM-DD_{project_name}/scratch/security/npm-audit-raw.json
 cd ../..
 
-# Docker images
-# For each image in docker-compose.yml:
+# Docker images (trivy)
 grep 'image:' docker-compose.yml | awk '{print $2}' | while read img; do
   echo "--- Scanning $img ---"
   trivy image --format json "$img" 2>/dev/null
-done > output/trivy-raw.json
+done > output/YYYY-MM-DD_{project_name}/scratch/security/trivy-raw.json
 
 # If trivy unavailable, check image pinning:
 grep 'image:' docker-compose.yml | grep -v 'sha256' | head -20
@@ -80,7 +87,7 @@ grep 'image:' docker-compose.yml | grep -v 'sha256' | head -20
 | Unmaintained crate/package with no CVE | **Observation** |
 | Docker image pinned to tag not digest | **Minor** (SEC-03) |
 
-### Output: `output/phase1-supply-chain.json`
+### Output: `output/YYYY-MM-DD_{project_name}/scratch/security/phase1-supply-chain.json`
 
 ```json
 {
@@ -103,7 +110,7 @@ grep 'image:' docker-compose.yml | grep -v 'sha256' | head -20
 ```bash
 # Gitleaks scan (if available)
 gitleaks detect --source . --report-format json \
-  --report-path output/gitleaks-raw.json 2>/dev/null
+  --report-path output/YYYY-MM-DD_{project_name}/scratch/security/gitleaks-raw.json 2>/dev/null
 
 # Fallback: pattern-based scanning
 # API keys, tokens, passwords in source code
@@ -147,30 +154,45 @@ done
 
 **Goal:** Map all network-accessible endpoints, authentication mechanisms, and input vectors.
 
-### Steps
+### LLM steps
+
+1. Read all source files handling inbound network traffic — look for route registrations, handler function patterns, WebSocket upgrade handlers, and RPC service definitions. The patterns vary by framework (e.g. `Router::new` / `.route` in Axum, `@app.route` in Flask, `app.get` in Express, `@Controller` in Spring) but the intent is universal: find every point where the application accepts external input.
+2. For each endpoint found, verify that authentication is required — look for auth middleware, token validation, or guard patterns attached to the handler. Flag any endpoint that is unauthenticated and not an intentional public route (e.g. health check).
+3. Read `docker-compose.yml` and any Dockerfiles: list all exposed ports. Verify that internal-only services (databases, message brokers, internal APIs) are not exposed to the host network.
+4. Look for rate limiting or throttling middleware attached to public endpoints — the implementation varies by framework but the intent is to prevent abuse.
+5. Check for hardcoded bind addresses: `0.0.0.0` bindings should be intentional and documented; flag any that are not.
+
+### Accelerator tools (optional)
 
 ```bash
 # List all network ports in docker-compose.yml
 grep -E 'ports:|expose:' -A2 docker-compose.yml
 
-# Find all route registrations (service endpoints)
+# Find route registrations — Rust (Axum/Actix)
 grep -rn 'Router::new\|\.route\|\.nest' src/api/ --include='*.rs'
 
+# Find route registrations — Python (Flask/FastAPI)
+grep -rn '@app\.route\|@router\.\|add_api_route' src/ --include='*.py'
+
+# Find route registrations — Node.js/TypeScript (Express)
+grep -rn 'app\.get\|app\.post\|router\.get\|router\.post' src/ apps/ --include='*.ts' --include='*.js'
+
 # Find all WebSocket handlers
-grep -rn 'WebSocket\|ws::\|upgrade' src/ --include='*.rs'
+grep -rn 'WebSocket\|ws::\|upgrade\|on_upgrade' src/ --include='*.rs'
+grep -rn 'WebSocket\|ws\.on\|socket\.on' src/ apps/ --include='*.ts' --include='*.py'
 
 # Find all external HTTP calls (outbound attack surface)
 grep -rn 'reqwest\|hyper::Client\|HttpClient' src/ --include='*.rs'
 grep -rn 'requests\.\|httpx\.\|urllib' src/ --include='*.py'
 
-# Check localhost binding (should not bind 0.0.0.0 unless intended)
-grep -rn '0\.0\.0\.0\|INADDR_ANY\|[::]' src/ config/ --include='*.rs' --include='*.yaml'
+# Check bind addresses
+grep -rn '0\.0\.0\.0\|INADDR_ANY\|[::]' src/ config/ --include='*.rs' --include='*.py' --include='*.yaml'
 
-# Auth model audit
-grep -rn 'bearer\|jwt\|token\|auth' src/api/ --include='*.rs' | head -30
+# Auth patterns
+grep -rn 'bearer\|jwt\|token\|auth' src/api/ --include='*.rs' --include='*.py' | head -30
 
-# Rate limiting check
-grep -rn 'rate_limit\|throttle\|RateLimit\|slowapi' src/ --include='*.rs' --include='*.py'
+# Rate limiting
+grep -rn 'rate_limit\|throttle\|RateLimit\|slowapi\|governor' src/ --include='*.rs' --include='*.py'
 ```
 
 ### Checklist
@@ -189,30 +211,41 @@ grep -rn 'rate_limit\|throttle\|RateLimit\|slowapi' src/ --include='*.rs' --incl
 
 **Goal:** Verify all encryption implementations are correct and active.
 
-### Steps
+### LLM steps
+
+1. Read source files and identify where sensitive data is stored — look for database write operations, file writes, and cache sets that involve user data, credentials, or private content.
+2. For each storage location, determine whether encryption is applied. The implementation varies: SQLCipher for SQLite, encrypted fields in ORMs, file-level encryption, encrypted volumes, etc. Flag any sensitive data stored in plaintext.
+3. Read network communication code and verify TLS is used for all external connections — look for `https://`, `wss://`, and TLS configuration in server setup code. Flag any plaintext (`http://`, `ws://`) connections to external services.
+4. Identify key storage: verify that cryptographic keys are stored in hardware-backed keystores or OS keychains where available (Android Keystore, iOS Secure Enclave, OS secret-service on Linux/macOS), not in plaintext config files or environment variables.
+5. Identify any use of deprecated or weak algorithms: MD5 or SHA1 used for security purposes, DES, 3DES, RC4, RSA with key sizes below 2048 bits, or AES in ECB mode.
+
+### Accelerator tools (optional)
 
 ```bash
-# Data at rest: encrypted storage
-# Check which databases use encryption (based on data sensitivity tiers)
+# Data at rest — Rust
 grep -rn 'sqlcipher\|cipher\|PRAGMA key\|PRAGMA cipher' src/ config/ --include='*.rs' --include='*.yaml'
 
-# Check databases are NOT plaintext for sensitive data
-# (requires examining config to see which DBs hold what sensitivity tier)
+# Data at rest — Python
+grep -rn 'sqlcipher\|cryptography\|Fernet\|encrypt' src/ --include='*.py'
 
-# Data in transit: TLS
-grep -rn 'tls\|rustls\|native_tls\|wss://' src/ apps/ --include='*.rs' --include='*.ts' --include='*.kt'
+# Data in transit — Rust
+grep -rn 'tls\|rustls\|native_tls\|wss://' src/ --include='*.rs'
 
-# E2E encryption
-grep -rn 'x25519\|aes_gcm\|chacha20\|XChaCha\|encrypt\|decrypt' src/ apps/ --include='*.rs' --include='*.kt' --include='*.ts'
+# Data in transit — TypeScript/Node
+grep -rn 'https\|wss://\|tls\.' src/ apps/ --include='*.ts' --include='*.js'
 
-# Key storage
-# Android: should use Android Keystore
+# Data in transit — Kotlin/Android
+grep -rn 'HttpsURLConnection\|OkHttp\|SSLContext' apps/android/ --include='*.kt'
+
+# Key storage — Android Keystore
 grep -rn 'KeyStore\|keystore\|AndroidKeyStore' apps/android/ --include='*.kt'
-# Desktop: should use OS keyring (secret-service D-Bus)
+
+# Key storage — Desktop (OS keyring)
 grep -rn 'keyring\|secret.service\|SecretService' apps/desktop/src-tauri/ --include='*.rs'
 
-# Key exchange
-grep -rn 'fingerprint\|X3DH\|key_exchange' src/ apps/ --include='*.rs' --include='*.kt'
+# Weak algorithm patterns
+grep -rn 'MD5\|SHA1\|DES\|RC4\|ECB\|md5\|sha1' src/ apps/ \
+  --include='*.rs' --include='*.py' --include='*.ts' --include='*.kt'
 ```
 
 ### Checklist
@@ -277,23 +310,40 @@ grep -A20 'environment:' docker-compose.yml | grep -i 'password\|secret\|key\|to
 
 **Goal:** Evaluate defenses against AI-specific attack vectors.
 
-### Steps
+### LLM steps
+
+1. Read all code paths that accept user input and pass it to an LLM — look for prompt construction, message history assembly, and RAG query building. These patterns appear regardless of language or LLM provider.
+2. For each input path, verify there is sanitization or validation before the content reaches the LLM — look for functions that strip or escape injected instructions, content filtering, or input length limits.
+3. Look for output validation: code that checks LLM responses before acting on them — especially for structured outputs like tool calls, function calls, or JSON that drives application behaviour.
+4. Check that different users' data cannot reach the same RAG or vector store scope — look for scope, collection, or namespace filtering applied to vector queries before results are returned.
+5. These checks apply regardless of the LLM provider (OpenAI, Anthropic, local models, etc.) or the language the application is written in.
+
+### Accelerator tools (optional)
 
 ```bash
-# Input sanitization
-grep -rn 'sanitiz\|clean_input\|strip_injection\|input_validator' src/ --include='*.rs' --include='*.py'
+# Input sanitization — Rust
+grep -rn 'sanitiz\|clean_input\|strip_injection\|input_validator' src/ --include='*.rs'
 
-# Output validation (Layer 4 defense)
+# Input sanitization — Python
+grep -rn 'sanitiz\|clean_input\|strip_injection\|input_validator' src/ --include='*.py'
+
+# Output validation — Rust
 grep -rn 'output_validat\|validate_response\|check_output' src/ --include='*.rs'
 
+# Output validation — Python
+grep -rn 'output_validat\|validate_response\|check_output' src/ --include='*.py'
+
 # Content isolation between RAG scopes
-grep -rn 'scope\|domain_filter\|collection_name' src/ --include='*.rs' | head -20
+grep -rn 'scope\|domain_filter\|collection_name\|namespace' src/ \
+  --include='*.rs' --include='*.py' --include='*.ts' | head -20
 
 # System prompt exposure risk
-grep -rn 'system_prompt\|personality' src/ --include='*.rs' | head -10
+grep -rn 'system_prompt\|personality\|system_message' src/ \
+  --include='*.rs' --include='*.py' --include='*.ts' | head -10
 
-# Tool call validation (access control checks tool calls, not just actions)
-grep -rn 'validate_tool\|tool_auth\|per_agent' src/ --include='*.rs'
+# Tool call validation
+grep -rn 'validate_tool\|tool_auth\|per_agent\|function_call' src/ \
+  --include='*.rs' --include='*.py' --include='*.ts'
 ```
 
 ### Defense Layers Audit
@@ -327,11 +377,11 @@ grep -rn 'validate_tool\|tool_auth\|per_agent' src/ --include='*.rs'
 ```bash
 # Access control config completeness
 # Count declared domains and actions
-yq '.domains | length' config/services/access-control-config.yaml 2>/dev/null
-yq '.domains[].actions | length' config/services/access-control-config.yaml 2>/dev/null | paste -sd+ | bc
+yq '.domains | length' config/access-control.yaml 2>/dev/null
+yq '.domains[].actions | length' config/access-control.yaml 2>/dev/null | paste -sd+ | bc
 
 # Check for hard-locks on financial/destructive actions
-yq '.domains[].actions[] | select(.tier == "T0")' config/services/access-control-config.yaml 2>/dev/null
+yq '.domains[].actions[] | select(.tier == "T0")' config/access-control.yaml 2>/dev/null
 
 # Token lifecycle
 grep -rn 'expir\|rotation\|refresh\|renew' src/api/jwt.rs 2>/dev/null
@@ -359,7 +409,7 @@ grep -rn 'biometric\|BiometricPrompt\|fingerprint' apps/android/ --include='*.kt
 
 ## Phase 8 — Report
 
-Compile all phase outputs into `output/YYYY-MM-DD/SS{n}-security-tomographe.md` using the report template.
+Compile all phase outputs into `output/YYYY-MM-DD_{project_name}/SS{n}-security-tomographe.md` (see `qualitoscope/config.yaml` for `project_name`) using the report template.
 
 Apply severity ratings per finding, compute overall verdict, generate action register.
 
@@ -386,8 +436,7 @@ security-tomographe/
 │   └── container-hardening.md        # Docker security checklist
 ├── templates/
 │   └── report-template.md
-├── output/
-│   └── .gitignore
+# output is now centralised — see output/YYYY-MM-DD_{project_name}/
 └── fixes/
     └── README.md
 ```
@@ -408,17 +457,15 @@ thresholds:
   container_hardening_score: 80 # % of hardening checklist passed
 
 scope:
-  rust_dirs: [src/]
-  python_dirs: [src/]
-  node_dirs: [apps/desktop/]
-  android_dirs: [apps/android/]
+  source_dirs: []               # adjust to project layout
   compose_file: docker-compose.yml
-  access_control_config: config/services/access-control-config.yaml
+  access_control_config: config/access-control.yaml
   env_files: [.env, .env.example]
   ci_config: .gitlab-ci.yml
 
 delta:
-  output_dir: output/
+  # output goes to output/YYYY-MM-DD_{project_name}/ — set project_name in qualitoscope/config.yaml
+  output_root: output/
   keep_runs: 10
 ```
 

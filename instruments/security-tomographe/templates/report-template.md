@@ -16,7 +16,7 @@ verdict: {verdict}
 | Critical CVEs | | |
 | High CVEs | | |
 | Secrets detected | | |
-| Enforcer coverage | | |
+| Authorization coverage | | |
 | Defense layers active | | |
 | Container hardening score | | |
 

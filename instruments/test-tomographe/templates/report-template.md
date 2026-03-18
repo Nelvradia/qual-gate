@@ -16,7 +16,7 @@ composite_score: {score}
 | Python tests | | |
 | TypeScript tests | | |
 | Coverage (heuristic) | | |
-| Enforcer action coverage | | |
+| Access control action coverage | | |
 | Assertion density | | |
 | Happy-path ratio | | |
 | CI pass rate | | |
@@ -46,7 +46,7 @@ composite_score: {score}
 
 ## Test Mandate Alignment
 
-| Skill | Unit Tests | DB Tests | API Tests | Column Checks | Enforcer | Compliant? |
+| Module | Unit Tests | DB Tests | API Tests | Column Checks | Access Control | Compliant? |
 |-------|-----------|----------|-----------|---------------|----------|------------|
 
 ## CI Health

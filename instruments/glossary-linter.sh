@@ -10,7 +10,7 @@
 # Flags:
 #   --strict   Exit 1 on any violation (default: advisory, exit 0)
 #
-# Default paths: core/core/daemon/src core/core/enforcer/src
+# Default paths: src/
 
 set -euo pipefail
 
@@ -25,7 +25,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ ${#PATHS[@]} -eq 0 ]]; then
-    PATHS=(core/core/daemon/src core/core/enforcer/src)
+    PATHS=(src/)
 fi
 
 ALLOWLIST_FILE="quality/instruments/glossary-allowlist.txt"
@@ -48,7 +48,7 @@ TERMS=(
 )
 
 # Qualified forms that are OK (these patterns suppress false positives)
-QUALIFIED_OK='enforcer_domain|life_domain|adapter_domain|domain:|conversation_context|life_context|code_context|conversation_mode|proactive_trigger|workflow_trigger|conversation_session|time_session|timer_session|thread_id|thread_summary|template_id|template_name|template_category|ToolDefinition|FunctionDefinition'
+QUALIFIED_OK='domain:|conversation_context|life_context|code_context|conversation_mode|proactive_trigger|workflow_trigger|conversation_session|time_session|timer_session|thread_id|thread_summary|template_id|template_name|template_category|ToolDefinition|FunctionDefinition'
 
 # Additional allowlist patterns (common Rust/framework uses that aren't G01 violations)
 FRAMEWORK_OK='std::thread|tokio::task|async_trait|#\[cfg|//|///|/\*|domain\(\)|\.domain|test_|_test|mod tests|pub struct|pub enum|pub fn|impl |use |domain_label|sub_domain|domain_key|\.context\(|anyhow::Context|context!|context_window|ContextBudget|context_budget|estimate_tokens|ContextManager|template_id|template_name|template_category|trigger_name|trigger_id|session_id|thread_id|fn domain|_domain|domain_'
