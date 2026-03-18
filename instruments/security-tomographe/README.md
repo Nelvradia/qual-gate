@@ -308,6 +308,10 @@ grep -A20 'environment:' docker-compose.yml | grep -i 'password\|secret\|key\|to
 
 ## Phase 6 — AI Threat Model
 
+> **Prerequisite:** This phase runs only when `profile.toggles.ai_ml_components` is `true`.
+> When false, log `Observation: "No AI/ML components configured — AI threat model skipped"`
+> and skip to Phase 7.
+
 **Goal:** Evaluate defenses against AI-specific attack vectors.
 
 ### LLM steps
@@ -369,6 +373,10 @@ grep -rn 'validate_tool\|tool_auth\|per_agent\|function_call' src/ \
 ---
 
 ## Phase 7 — Access Control
+
+> **Prerequisite:** This phase runs only when `profile.toggles.permission_system` is `true`.
+> When false, log `Observation: "No permission system configured — AC checks skipped"`
+> and skip to Phase 8.
 
 **Goal:** Verify the permission/access control configuration, token lifecycle, and device management.
 

@@ -174,7 +174,7 @@ grep -rn 'SELECT\|INSERT\|UPDATE\|DELETE\|CREATE TABLE' src/api/ src/service/ --
 | Persistence types in API layer | **Major** |
 | Component importing another component directly | **Minor** |
 | Raw data access outside the designated persistence module | **Major** |
-| Access control bypass | **Critical** |
+| Access control bypass (requires `toggles.permission_system`) | **Critical** |
 
 ---
 
