@@ -424,6 +424,8 @@ XC-08: Dep update without security scan
 
 **Goal:** Compute the Overall Summary (DR Section S14) from all deduplicated and cross-correlated findings. This is the only DR section that no individual instrument produces — it's the Qualitoscope's unique contribution.
 
+AI-ML findings (from I12) contribute to the composite score but are not mapped to their own DR section. They feed into S5 where relevant (AI threats) and into the overall severity counts.
+
 ### Steps
 
 1. Collect all findings from Phase 3 (deduplicated) + Phase 4 (cross-correlated)
@@ -507,6 +509,8 @@ score = 1.0
 ## Phase 6 — DR Synthesis (DR Mode Only)
 
 **Goal:** Map instrument outputs to DR-TEMPLATE sections, producing a complete Design Review report. This phase is skipped during Quick Scan and Targeted Scan modes.
+
+**Note:** AI-ML (I12) is a supplementary quality dimension — it does not have its own DR section. Its findings feed into S5 (AI threats) and the composite score but AI-ML does not get a section sub-verdict.
 
 ### DR Section → Instrument Mapping
 
