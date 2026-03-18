@@ -1,0 +1,119 @@
+# project-profile.example.yaml
+# Fully annotated example of a project profile for qual-gate.
+# Copy this file to the root of your target project as project-profile.yaml
+# and edit to match your project.
+#
+# Only `name` and `stack.languages` are required — everything else is optional
+# and falls back to convention-based defaults defined in project-profile.schema.yaml.
+
+# ─── identity ────────────────────────────────────────────────────────────────
+# Project metadata used in output naming and report headers.
+
+name: my-project                   # REQUIRED — used in output folder: output/YYYY-MM-DD_my-project/
+version: "1.2.0"                   # Optional — enables version consistency checks
+repo_url: https://gitlab.example.com/org/my-project  # Optional — report links
+
+# ─── stack ───────────────────────────────────────────────────────────────────
+# Technology stack declaration. Drives language-specific instrument behaviour.
+
+stack:
+  languages: [rust, typescript]    # REQUIRED (min 1) — linters, formatters, dep checks
+  build_systems: [cargo, vite]     # Optional — deployment & code instrument
+  ci_platform: gitlab-ci           # Optional — default: gitlab-ci
+  package_managers: [cargo, npm]   # Optional — dependency & lockfile analysis
+
+# ─── paths ───────────────────────────────────────────────────────────────────
+# Project layout. All paths relative to project root.
+# Instruments read these instead of hardcoding paths in their own config.
+
+paths:
+  source_dirs: [src/, apps/]       # Default: [src/]
+  test_dirs: [tests/, apps/*/tests/]  # Default: [tests/]
+  docs_dir: docs/                  # Default: docs/
+  config_dir: config/              # Default: config/
+  ci_config: .gitlab-ci.yml       # Default: .gitlab-ci.yml
+  compose_files:                   # Default: [docker-compose.yml]
+    - docker-compose.yml
+    - docker-compose.prod.yml
+  version_files: [VERSION, Cargo.toml]  # Default: [VERSION]
+  operations_docs: docs/operations/     # Default: docs/operations/
+  db_dir: migrations/              # Default: null (no database)
+  backup_scripts: infra/scripts/backup/  # Default: null
+  ui_source_dirs: [apps/web/src/]  # Default: [] (no frontend)
+
+# ─── conventions ─────────────────────────────────────────────────────────────
+# Instrument-specific paths. Only declare fields relevant to your project.
+# Null or absent fields cause the consuming instrument to skip those checks.
+
+conventions:
+  access_control_config: config/access-control.yaml
+  component_manifest: config/component-permission-manifest.yaml
+  boundary_tests: tests/integration/test_boundaries.py
+  business_docs: docs/requirements/
+  glossary_script: infra/scripts/lint_glossary.py
+  schema_map: docs/schema-map.md
+  metrics_doc: docs/metrics-registry.md
+  design_docs: docs/design/
+  adrs: .claude/decisions/
+  gap_docs: docs/gaps/
+  dr_runbook: docs/operations/dr-runbook.md
+  alert_rules: infra/monitoring/rules/*.yml
+  dashboards: infra/monitoring/dashboards/*.json
+  metrics_source_dirs: [src/metrics/, src/telemetry/]
+  personality_files: [config/personality.yaml]
+  golden_dir: tests/golden/
+  rag_eval_dir: tests/rag-eval/
+  routing_dataset: tests/routing-eval/dataset.jsonl
+  eval_script: scripts/run-eval.py
+  ux_spec: docs/ux-spec.md
+
+# ─── platforms ───────────────────────────────────────────────────────────────
+# Platform-specific checks and service endpoints.
+
+platforms:
+  targets: [web, cli]             # Enables platform-specific security & UX checks
+  service_url: http://localhost:8080  # For live performance/health checks
+  vector_store_url: http://localhost:6333  # For RAG evaluation
+
+# ─── toggles ─────────────────────────────────────────────────────────────────
+# Enable/disable conditional instrument phases. All default to false.
+
+toggles:
+  permission_system: true          # Enables RBAC/permission checks
+  ai_ml_components: true           # Enables full AI/ML quality evaluation
+  gdpr_scope: true                 # Enables GDPR privacy tier checks
+  ai_act_scope: false              # Enables EU AI Act compliance checks
+
+# ─── architecture ────────────────────────────────────────────────────────────
+# Structure for architecture-tomographe layer analysis.
+
+architecture:
+  boundary_marker: crate           # crate | package | module | namespace
+  layers: [api, service, domain, infrastructure]  # Ordered top→bottom
+  entry_points: [src/main.rs, apps/web/src/main.tsx]
+  doc_sources: [docs/architecture/]
+
+# ─── exclude ─────────────────────────────────────────────────────────────────
+# Glob patterns excluded from all instrument scans. Extends the default list:
+# vendor/, target/, node_modules/, build/, dist/, __pycache__/, .git/
+
+exclude:
+  - "vendor/"
+  - "target/"
+  - "node_modules/"
+  - "build/"
+  - "dist/"
+  - "__pycache__/"
+  - ".git/"
+  - "generated/"                   # Project-specific exclusion
+  - "*.min.js"                     # Project-specific exclusion
+
+# ─── minimal profile ────────────────────────────────────────────────────────
+# The smallest valid project-profile.yaml is just:
+#
+#   name: my-project
+#   stack:
+#     languages: [python]
+#
+# All paths default to conventions (src/, tests/, docs/, etc.).
+# All toggles default to false. All optional fields are null/empty.

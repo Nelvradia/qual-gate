@@ -1,0 +1,468 @@
+# project-profile.schema.yaml
+# Reference schema for project-profile.yaml — the single source of project-specific
+# configuration consumed by all qual-gate instruments.
+#
+# Place a project-profile.yaml in the root of the target project. Only `name` and
+# `stack.languages` are required; everything else has convention-based defaults.
+
+---
+# ──────────────────────────────────────────────────────────────────────────────
+# identity — project metadata used in output naming and documentation
+# ──────────────────────────────────────────────────────────────────────────────
+identity:
+  name:
+    type: string
+    required: true
+    description: >
+      Human-readable project name. Used in output folder naming
+      (output/YYYY-MM-DD_{name}/) and report headers.
+    consumed_by: [qualitoscope]
+
+  version:
+    type: string
+    required: false
+    default: null
+    description: >
+      Current project version (SemVer). If absent, instruments that check
+      version consistency will skip version-related checks.
+    consumed_by: [deployment-tomographe, documentation-tomographe]
+
+  repo_url:
+    type: string
+    required: false
+    default: null
+    description: >
+      Repository URL. Used in report links and licence attribution.
+    consumed_by: [qualitoscope, compliance-tomographe]
+
+# ──────────────────────────────────────────────────────────────────────────────
+# stack — technology stack declaration driving instrument behaviour
+# ──────────────────────────────────────────────────────────────────────────────
+stack:
+  languages:
+    type: list[string]
+    required: true
+    min_items: 1
+    description: >
+      Programming languages used in the project. Drives which linters,
+      formatters, and language-specific checks each instrument applies.
+    example: [python, rust, typescript]
+    consumed_by: [code-tomographe, test-tomographe, security-tomographe, dependency-tomographe]
+
+  build_systems:
+    type: list[string]
+    required: false
+    default: []
+    description: >
+      Build systems in use (cargo, cmake, vite, webpack, setuptools, etc.).
+    example: [cargo, vite]
+    consumed_by: [deployment-tomographe, code-tomographe]
+
+  ci_platform:
+    type: string
+    required: false
+    default: gitlab-ci
+    description: >
+      CI platform identifier. Determines which CI config files to look for.
+    enum: [gitlab-ci, github-actions, azure-pipelines, jenkins, circleci]
+    consumed_by: [deployment-tomographe, security-tomographe]
+
+  package_managers:
+    type: list[string]
+    required: false
+    default: []
+    description: >
+      Package managers in use (cargo, npm, pip, poetry, pnpm, etc.).
+      Used for dependency and lockfile analysis.
+    example: [cargo, npm]
+    consumed_by: [dependency-tomographe, security-tomographe]
+
+# ──────────────────────────────────────────────────────────────────────────────
+# paths — project layout consumed by instruments for file discovery
+# ──────────────────────────────────────────────────────────────────────────────
+paths:
+  source_dirs:
+    type: list[string]
+    required: false
+    default: ["src/"]
+    description: >
+      Directories containing production source code.
+    consumed_by:
+      - code-tomographe
+      - test-tomographe
+      - architecture-tomographe
+      - security-tomographe
+      - observability-tomographe
+      - ai-ml-tomographe
+
+  test_dirs:
+    type: list[string]
+    required: false
+    default: ["tests/"]
+    description: >
+      Directories containing test code.
+    consumed_by: [test-tomographe]
+
+  docs_dir:
+    type: string
+    required: false
+    default: "docs/"
+    description: >
+      Root documentation directory.
+    consumed_by: [documentation-tomographe]
+
+  config_dir:
+    type: string
+    required: false
+    default: "config/"
+    description: >
+      Directory containing application configuration files.
+    consumed_by: [compliance-tomographe, data-tomographe]
+
+  ci_config:
+    type: string
+    required: false
+    default: ".gitlab-ci.yml"
+    description: >
+      Path to the CI configuration file. Default follows ci_platform.
+    consumed_by: [deployment-tomographe, security-tomographe]
+
+  compose_files:
+    type: list[string]
+    required: false
+    default: ["docker-compose.yml"]
+    description: >
+      Paths to Docker Compose files.
+    consumed_by: [deployment-tomographe, security-tomographe, performance-tomographe]
+
+  version_files:
+    type: list[string]
+    required: false
+    default: ["VERSION"]
+    description: >
+      Files containing the project version string.
+    consumed_by: [deployment-tomographe, documentation-tomographe]
+
+  operations_docs:
+    type: string
+    required: false
+    default: "docs/operations/"
+    description: >
+      Directory containing operations/runbook documentation.
+    consumed_by: [deployment-tomographe, documentation-tomographe]
+
+  db_dir:
+    type: string
+    required: false
+    default: null
+    description: >
+      Directory containing database migrations and schema files.
+      Null means the project has no database layer.
+    consumed_by: [data-tomographe]
+
+  backup_scripts:
+    type: string
+    required: false
+    default: null
+    description: >
+      Directory or path to backup/restore scripts.
+    consumed_by: [data-tomographe]
+
+  ui_source_dirs:
+    type: list[string]
+    required: false
+    default: []
+    description: >
+      Directories containing frontend/UI source code.
+    consumed_by: [ux-tomographe]
+
+# ──────────────────────────────────────────────────────────────────────────────
+# conventions — instrument-specific paths that only apply if the project uses them
+# ──────────────────────────────────────────────────────────────────────────────
+conventions:
+  access_control_config:
+    type: string
+    required: false
+    default: null
+    description: >
+      Path to the access control / RBAC configuration file.
+    consumed_by: [compliance-tomographe, security-tomographe]
+
+  component_manifest:
+    type: string
+    required: false
+    default: null
+    description: >
+      Path to a component-to-permission mapping manifest.
+    consumed_by: [compliance-tomographe]
+
+  boundary_tests:
+    type: string
+    required: false
+    default: null
+    description: >
+      Path or glob for architectural boundary tests.
+    consumed_by: [compliance-tomographe]
+
+  business_docs:
+    type: string
+    required: false
+    default: null
+    description: >
+      Path to business logic documentation (requirements, user stories).
+    consumed_by: [compliance-tomographe]
+
+  glossary_script:
+    type: string
+    required: false
+    default: null
+    description: >
+      Path to the glossary linter script.
+    consumed_by: [documentation-tomographe]
+
+  schema_map:
+    type: string
+    required: false
+    default: null
+    description: >
+      Path to the database schema documentation file.
+    consumed_by: [documentation-tomographe, data-tomographe]
+
+  metrics_doc:
+    type: string
+    required: false
+    default: null
+    description: >
+      Path to the metrics registry documentation.
+    consumed_by: [documentation-tomographe, observability-tomographe]
+
+  design_docs:
+    type: string
+    required: false
+    default: null
+    description: >
+      Directory containing design documents (brainstorm, architecture decisions).
+    consumed_by: [documentation-tomographe]
+
+  adrs:
+    type: string
+    required: false
+    default: null
+    description: >
+      Directory containing Architecture Decision Records.
+    consumed_by: [documentation-tomographe, architecture-tomographe]
+
+  gap_docs:
+    type: string
+    required: false
+    default: null
+    description: >
+      Directory containing gap analysis documents.
+    consumed_by: [documentation-tomographe]
+
+  dr_runbook:
+    type: string
+    required: false
+    default: null
+    description: >
+      Path to the disaster recovery runbook.
+    consumed_by: [data-tomographe]
+
+  alert_rules:
+    type: string
+    required: false
+    default: null
+    description: >
+      Path or glob for alerting rule files (Prometheus rules, etc.).
+    consumed_by: [observability-tomographe]
+
+  dashboards:
+    type: string
+    required: false
+    default: null
+    description: >
+      Path or glob for dashboard definition files (Grafana JSON, etc.).
+    consumed_by: [observability-tomographe]
+
+  metrics_source_dirs:
+    type: list[string]
+    required: false
+    default: []
+    description: >
+      Directories containing metric registration code. Falls back to source_dirs.
+    consumed_by: [observability-tomographe]
+
+  personality_files:
+    type: list[string]
+    required: false
+    default: []
+    description: >
+      Paths to AI personality / system prompt configuration files.
+    consumed_by: [ux-tomographe, ai-ml-tomographe]
+
+  golden_dir:
+    type: string
+    required: false
+    default: null
+    description: >
+      Directory containing golden evaluation datasets for AI/ML quality.
+    consumed_by: [ai-ml-tomographe]
+
+  rag_eval_dir:
+    type: string
+    required: false
+    default: null
+    description: >
+      Directory containing RAG evaluation pairs.
+    consumed_by: [ai-ml-tomographe]
+
+  routing_dataset:
+    type: string
+    required: false
+    default: null
+    description: >
+      Path to the intent routing evaluation dataset.
+    consumed_by: [ai-ml-tomographe]
+
+  eval_script:
+    type: string
+    required: false
+    default: null
+    description: >
+      Path to the evaluation runner script for AI/ML quality checks.
+    consumed_by: [ai-ml-tomographe]
+
+  ux_spec:
+    type: string
+    required: false
+    default: null
+    description: >
+      Path to the UX specification document.
+    consumed_by: [ux-tomographe]
+
+# ──────────────────────────────────────────────────────────────────────────────
+# platforms — platform-specific checks and service endpoints
+# ──────────────────────────────────────────────────────────────────────────────
+platforms:
+  targets:
+    type: list[string]
+    required: false
+    default: []
+    description: >
+      Deployment targets (web, mobile, desktop, embedded, cli).
+      Used to enable platform-specific security and UX checks.
+    consumed_by: [security-tomographe, ux-tomographe]
+
+  service_url:
+    type: string
+    required: false
+    default: null
+    description: >
+      URL of a running service instance for live checks (performance, health).
+    consumed_by: [performance-tomographe]
+
+  vector_store_url:
+    type: string
+    required: false
+    default: null
+    description: >
+      URL of the vector store (for RAG evaluation).
+    consumed_by: [ai-ml-tomographe, data-tomographe]
+
+# ──────────────────────────────────────────────────────────────────────────────
+# toggles — enable/disable conditional instrument phases
+# ──────────────────────────────────────────────────────────────────────────────
+toggles:
+  permission_system:
+    type: boolean
+    required: false
+    default: false
+    description: >
+      Set true if the project has a permission/RBAC system.
+      Enables compliance and security checks for access control.
+    consumed_by: [compliance-tomographe, security-tomographe]
+
+  ai_ml_components:
+    type: boolean
+    required: false
+    default: false
+    description: >
+      Set true if the project includes AI/ML components (LLM integration,
+      prompt engineering, RAG, etc.). Enables the full ai-ml-tomographe.
+    consumed_by: [ai-ml-tomographe, security-tomographe]
+
+  gdpr_scope:
+    type: boolean
+    required: false
+    default: false
+    description: >
+      Set true if the project processes personal data under GDPR.
+      Enables privacy tier checks in data-tomographe and compliance.
+    consumed_by: [data-tomographe, compliance-tomographe]
+
+  ai_act_scope:
+    type: boolean
+    required: false
+    default: false
+    description: >
+      Set true if the project falls under EU AI Act scope.
+      Enables AI Act compliance checks.
+    consumed_by: [compliance-tomographe, ai-ml-tomographe]
+
+# ──────────────────────────────────────────────────────────────────────────────
+# architecture — structure for architecture-tomographe layer analysis
+# ──────────────────────────────────────────────────────────────────────────────
+architecture:
+  boundary_marker:
+    type: string
+    required: false
+    default: null
+    description: >
+      What constitutes an architectural boundary (crate, package, module,
+      namespace). Used for layer violation detection.
+    consumed_by: [architecture-tomographe]
+
+  layers:
+    type: list[string]
+    required: false
+    default: []
+    description: >
+      Ordered list of architectural layers (e.g. [api, service, db]).
+      Used for dependency direction validation.
+    consumed_by: [architecture-tomographe]
+
+  entry_points:
+    type: list[string]
+    required: false
+    default: []
+    description: >
+      Application entry point files.
+    consumed_by: [architecture-tomographe]
+
+  doc_sources:
+    type: list[string]
+    required: false
+    default: []
+    description: >
+      Directories containing architecture documentation.
+    consumed_by: [architecture-tomographe]
+
+# ──────────────────────────────────────────────────────────────────────────────
+# exclude — shared exclude patterns applied by all instruments
+# ──────────────────────────────────────────────────────────────────────────────
+exclude:
+  type: list[string]
+  required: false
+  default:
+    - "vendor/"
+    - "target/"
+    - "node_modules/"
+    - "build/"
+    - "dist/"
+    - "__pycache__/"
+    - ".git/"
+  description: >
+    Glob patterns excluded from all instrument scans. Individual instruments
+    may extend this list via their own config.yaml exclude fields but cannot
+    override (remove) entries from the profile-level list.
+  consumed_by: [all instruments]
