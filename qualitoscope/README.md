@@ -176,12 +176,23 @@ for inst in architecture-tomographe test-tomographe code-tomographe documentatio
 done
 ```
 
+### Profile Resolution
+
+Before checking freshness or delegating, resolve the project profile into instrument configs:
+
+1. Load the validated `project-profile.yaml` from Phase 1
+2. Resolve profile path fields into each instrument's expected config keys
+3. Resolve conditional toggles — determine which instrument phases to skip
+4. Pass resolved config to each instrument (instruments receive concrete paths, not raw profile references)
+
+See `methods/02-delegation.md` for the full profile → instrument resolution table.
+
 ### Delegation Protocol
 
 For each instrument that needs to run:
 
 1. Read the instrument's `README.md` for methodology
-2. Execute a full scan following the instrument's phase sequence
+2. Execute a full scan following the instrument's phase sequence (skipping toggled-off phases)
 3. Verify output files were produced in `output/YYYY-MM-DD_{project_name}/`
 4. Read the instrument's report from `output/YYYY-MM-DD_{project_name}/`
 5. Record the instrument's findings in the Qualitoscope's working set
@@ -205,6 +216,7 @@ For each instrument that needs to run:
 {
   "timestamp": "ISO-8601",
   "mode": "full|dr|targeted",
+  "profile_applied": true,
   "instruments_invoked": 13,
   "instruments_succeeded": 13,
   "instruments_failed": 0,
