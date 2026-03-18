@@ -33,6 +33,12 @@
 
 **Goal:** Validate the integrity of evaluation datasets.
 
+### LLM steps
+
+No LLM reasoning required for this phase. All checks are mechanical — run the accelerator commands and record results.
+
+### Accelerator tools (optional)
+
 ```bash
 # Dataset existence and size
 for dataset in corrections summaries classifications templates; do
@@ -81,16 +87,22 @@ echo "Target minimums: corrections>=50, summaries>=30, classifications>=40, temp
 
 **Goal:** Measure accuracy of LLM extractions against golden datasets.
 
+### LLM steps
+
+No additional LLM reasoning required beyond running the evaluation. Interpret the output against the accuracy targets table below.
+
+### Accelerator tools (optional)
+
 ```bash
 # Run evaluation if script exists and LLM is available
 python3 scripts/evaluate_extractions.py \
   --golden-dir tests/fixtures/golden/ \
-  --output output/extraction-results.json 2>/dev/null
+  --output output/YYYY-MM-DD_{project_name}/scratch/ai-ml/extraction-results.json 2>/dev/null
 
 # If LLM not available, check for cached results
-if [ -f output/extraction-results.json ]; then
+if [ -f output/YYYY-MM-DD_{project_name}/scratch/ai-ml/extraction-results.json ]; then
   echo "Using cached extraction results"
-  cat output/extraction-results.json | jq '.summary'
+  cat output/YYYY-MM-DD_{project_name}/scratch/ai-ml/extraction-results.json | jq '.summary'
 else
   echo "NO_RESULTS: Extraction evaluation requires running LLM"
 fi
@@ -115,10 +127,17 @@ fi
 
 **Goal:** Evaluate semantic search quality.
 
+### LLM steps
+
+No additional LLM reasoning required for the mechanical checks. If evaluation results are available, interpret Recall@K, Precision@K, and MRR against the thresholds in the readiness table.
+
+### Accelerator tools (optional)
+
 ```bash
 # Check eval dataset existence
-if [ -f tests/fixtures/rag_eval/queries.jsonl ]; then
-  echo "RAG eval dataset: $(wc -l < tests/fixtures/rag_eval/queries.jsonl) query-document pairs"
+RAG_EVAL_DIR="${RAG_EVAL_DIR:-tests/fixtures/rag_eval}"
+if [ -f "${RAG_EVAL_DIR}/queries.jsonl" ]; then
+  echo "RAG eval dataset: $(wc -l < "${RAG_EVAL_DIR}/queries.jsonl") query-document pairs"
 else
   echo "ABSENT: No RAG evaluation dataset"
 fi
@@ -133,7 +152,7 @@ curl -sf http://localhost:6333/collections 2>/dev/null | jq '.result.collections
 # 4. Compute Recall@K, Precision@K, MRR
 
 # Check for existing eval results
-cat output/rag-eval-results.json 2>/dev/null | jq '.summary'
+cat output/YYYY-MM-DD_{project_name}/scratch/ai-ml/rag-eval-results.json 2>/dev/null | jq '.summary'
 ```
 
 ### Readiness Assessment
@@ -152,6 +171,15 @@ cat output/rag-eval-results.json 2>/dev/null | jq '.summary'
 
 **Goal:** Track prompt versioning and regression risk.
 
+### LLM steps
+
+1. Read all source files where prompts are constructed — look for string templates, f-strings, `format!` calls, template files, or prompt assembly functions in any language.
+2. Identify where the system prompt is defined and whether it is versioned or configurable.
+3. Check whether prompt templates have corresponding test cases (golden dataset comparisons or evaluation scripts).
+4. Identify hardcoded instructions in prompts that should be configuration-driven.
+
+### Accelerator tools (optional)
+
 ```bash
 # AI behaviour configuration file version tracking
 # Locate personality/system prompt configuration files
@@ -166,12 +194,18 @@ done
 # Track changes since last scan
 git log --oneline -5 -- '**/personality/**' '**/system-prompt*' 2>/dev/null
 
-# System prompt construction
-grep -rn 'system_prompt\|system_message\|SystemMessage' src/ --include='*.rs' --include='*.py' | wc -l
+# System prompt construction — generic (works across languages)
+grep -rn 'system_prompt\|SYSTEM_PROMPT\|system prompt' . 2>/dev/null | grep -v '.git'
+
+# Rust
+grep -rn 'system_prompt\|system_message\|SystemMessage' . --include='*.rs' 2>/dev/null | wc -l
+
+# Python
+grep -rn 'system_prompt\|system_message\|SystemMessage' . --include='*.py' 2>/dev/null | wc -l
 
 # Prompt template locations
-find src/ config/ -name '*.txt' -o -name '*prompt*' -o -name '*template*' 2>/dev/null | \
-  grep -v 'test\|node_modules\|target'
+find . -name '*.txt' -o -name '*prompt*' -o -name '*template*' 2>/dev/null | \
+  grep -v 'test\|node_modules\|target\|.git'
 
 # Check if prompt changes are version-controlled
 git log --oneline -10 -- '**/prompt*' '**/personality*' 'config/**/prompt*' 2>/dev/null
@@ -192,12 +226,28 @@ git log --oneline -10 -- '**/prompt*' '**/personality*' 'config/**/prompt*' 2>/d
 
 **Goal:** Verify the model tier router classifies requests correctly.
 
+### LLM steps
+
+1. Read source files to identify model routing logic — any code that selects between different LLM models, routing tiers, or inference backends.
+2. Verify that routing decisions are configuration-driven, not hardcoded.
+3. Check that fallback behaviour is defined when the primary model or tier is unavailable.
+4. These patterns are language-agnostic — routing logic looks the same in Rust, Python, TypeScript, or Go.
+
+### Accelerator tools (optional)
+
 ```bash
-# Check if router is deployed
-grep -rn 'router\|Router\|model_select\|tier_select' src/ --include='*.rs' --include='*.py' | head -10
+# Check if router is deployed — generic
+grep -rn 'router\|Router\|model_select\|tier_select' . \
+  --exclude-dir='.git' --exclude-dir='node_modules' 2>/dev/null | head -10
+
+# Rust
+grep -rn 'router\|Router\|model_select\|tier_select' . --include='*.rs' 2>/dev/null | head -10
+
+# Python
+grep -rn 'router\|Router\|model_select\|tier_select' . --include='*.py' 2>/dev/null | head -10
 
 # Check for routing config
-grep -rn 'routing\|model_tier\|model_selection' config/ --include='*.yaml' | head -10
+grep -rn 'routing\|model_tier\|model_selection' . --include='*.yaml' 2>/dev/null | head -10
 
 # If routing test dataset exists:
 if [ -f tests/fixtures/routing/labeled_requests.jsonl ]; then
@@ -215,17 +265,30 @@ fi
 
 **Goal:** Verify that confidence scores match actual correctness rates.
 
+### LLM steps
+
+No additional LLM reasoning required for the mechanical checks. If calibration data is available, interpret the (confidence, correctness) distribution and flag miscalibration.
+
+### Accelerator tools (optional)
+
 ```bash
 # Check for calibration data
-if [ -f output/calibration-data.json ]; then
+if [ -f output/YYYY-MM-DD_{project_name}/scratch/ai-ml/calibration-data.json ]; then
   echo "Calibration data available"
-  jq '.data_points | length' output/calibration-data.json
+  jq '.data_points | length' output/YYYY-MM-DD_{project_name}/scratch/ai-ml/calibration-data.json
 else
   echo "NO_DATA: Confidence calibration requires accumulated (confidence, correctness) pairs"
 fi
 
-# Check confidence field exists in extraction outputs
-grep -rn 'confidence\|Confidence' src/ --include='*.rs' --include='*.py' | head -10
+# Check confidence field exists in source outputs — generic
+grep -rn 'confidence\|Confidence' . \
+  --exclude-dir='.git' --exclude-dir='node_modules' 2>/dev/null | head -10
+
+# Rust
+grep -rn 'confidence\|Confidence' . --include='*.rs' 2>/dev/null | head -10
+
+# Python
+grep -rn 'confidence\|Confidence' . --include='*.py' 2>/dev/null | head -10
 ```
 
 **Note:** Calibration requires accumulated data from production use. Until sufficient data exists (>=100 data points recommended), this phase produces a readiness assessment rather than actual calibration results.
@@ -260,11 +323,12 @@ thresholds:
 
 scope:
   golden_dir: tests/fixtures/golden/
-  rag_eval_dir: tests/fixtures/rag_eval/
+  rag_eval_dir: tests/fixtures/rag_eval/   # adjust to project layout
   routing_dataset: tests/fixtures/routing/labeled_requests.jsonl
   eval_script: scripts/evaluate_extractions.py
   personality_files: []                    # Paths to AI behaviour configuration files
   vector_store_url: "http://localhost:6333"
+  source_dirs: []                          # Source directories to scan — leave empty to search project root
 ```
 
 ---

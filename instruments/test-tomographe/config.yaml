@@ -1,10 +1,13 @@
 thresholds:
   coverage:
-    rust_line_phase1b: 0.60
-    rust_line_phase2: 0.75
-    enforcer_action: 1.00
+    # Line coverage targets — language-agnostic percentage thresholds
+    line_phase1b: 0.60
+    line_phase2: 0.75
+    access_control_action: 1.00
+    # Maximum number of source modules with zero test coverage
     module_gap_max: 10
   quality:
+    # LLM uses these to evaluate assertion density across any test framework
     assertion_density_min: 1.5
     assertion_density_target: 2.0
     happy_path_ratio_max: 0.70
@@ -21,7 +24,7 @@ thresholds:
     crud_functional_required: true
     standard_columns_required: true
     api_contract_required: true
-    enforcer_boundary_required: true
+    access_control_boundary_required: true
   ai_quality:
     stub_coverage: 1.00
     error_stub_ratio_min: 0.30
@@ -42,8 +45,13 @@ scoring:
     yellow: 0.70
     red: 0.50
 scope:
-  rust_crates: [core/daemon, core/enforcer, core/watchdog, core/common]
-  python_dirs: [tests/]
-  ts_dirs: [desktop/src/]
-  fixture_dirs: [core/tests/fixtures/]
+  # Directories containing source code — LLM reads these to build the module list
+  source_dirs: []          # e.g. [src/, lib/, pkg/]
+  # Directories containing test files — LLM reads these to build the test inventory
+  test_dirs: []            # e.g. [tests/, spec/, __tests__/]
   exclude: [vendor/, target/, node_modules/]
+
+delta:
+  # output goes to output/YYYY-MM-DD_{project_name}/ at repo root — set project_name in qualitoscope/config.yaml
+  output_root: output/
+  keep_runs: 10

@@ -156,7 +156,7 @@ grep -rn 'audit\|access_log\|data_access' src/ --include='*.rs' | head -10
 |---|---|---|---|---|
 | main.db | Internal | Plain SQLite | No | Verify no Confidential/Restricted data stored here |
 | config.db | Public | Plain SQLite | No | Config only, no personal data |
-| planning.db | Internal | Plain SQLite | No | Task data, no PII |
+| (internal data) | Internal | Plain SQLite | No | Task data, no PII |
 | notifications.db | Internal | Plain SQLite | No | Notification metadata |
 | (sensitive data) | Confidential/Restricted | Encrypted storage | Yes | Verify encryption active |
 
@@ -203,7 +203,7 @@ find infra/scripts/ -name '*backup*' 2>/dev/null
 # Which data stores are backed up?
 echo "=== Data stores to back up ==="
 echo "1. Databases (all SQLite / PostgreSQL / etc.)"
-echo "2. Vector store data (Qdrant, Milvus, etc.)"
+echo "2. Vector database data (if applicable)"
 echo "3. Personality/configuration files"
 echo "4. Encryption keys (device keys, E2E keys)"
 echo "5. Application configuration files"
@@ -294,7 +294,7 @@ scope:
 
 ## Output
 
-Reports are written to `output/YYYY-MM-DD/DA<N>-data.md` (e.g., `output/2026-03-17/DA1-data.md`).
+Reports are written to `output/YYYY-MM-DD_{project_name}/DA{n}-data.md` (see `qualitoscope/config.yaml` for `project_name`).
 
 ---
 

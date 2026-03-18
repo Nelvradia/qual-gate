@@ -19,57 +19,56 @@
 
 | Phase | Name | What It Does | Tools |
 |-------|------|-------------|-------|
-| **1** | Inventory | Enumerate all tests by language, crate, and module | grep, cargo test --list, pytest --collect-only |
-| **2** | Coverage | Line coverage heuristics, module-level gap detection | cargo-tarpaulin (if available), heuristic grep |
-| **3** | Quality | Assertion density, happy-path ratio, error-case ratio | grep, LLM analysis |
-| **4** | Alignment | Test mandate compliance, golden path validation | Checklist-driven, grep |
-| **5** | Health | CI pass rate, flaky test detection, suite timing | CI API, git log, timing data |
-| **6** | Regression Risk | High-churn files with low test density | git log, grep correlation |
-| **7** | AI Quality | Golden dataset coverage, LLM stub completeness, error stubs | grep, fixture analysis |
+| **1** | Inventory | Enumerate all tests by language, module, and type | LLM file reading, ecosystem-specific collect commands |
+| **2** | Coverage | Line coverage heuristics, module-level gap detection | LLM structural analysis, ecosystem coverage tools |
+| **3** | Quality | Assertion density, happy-path ratio, error-case ratio | LLM analysis, assertion keyword search |
+| **4** | Alignment | Test mandate compliance, golden path validation | LLM checklist-driven analysis |
+| **5** | Health | CI pass rate, flaky test detection, suite timing | LLM CI config reading, skip-pattern search |
+| **6** | Regression Risk | High-churn files with low test density | git log, LLM correlation analysis |
+| **7** | AI Quality | Golden dataset coverage, LLM stub completeness, error stubs | LLM fixture analysis |
 | **8** | Report | Compile TR{n} report with scoring | Template filling |
 
 ---
 
 ## Phase 1 — Inventory
 
-**Goal:** Build a complete inventory of all tests by language, crate, module, and type.
+**Goal:** Build a complete inventory of all tests by language, module, and type.
 
-### Steps
+### LLM steps
+
+1. Discover test files by reading the project structure. Test files are identified by convention across ecosystems:
+   - Files named `test_*.py`, `*_test.py` (Python)
+   - Files named `*_test.go`, `*_test` packages (Go)
+   - Files named `*.test.ts`, `*.spec.ts`, `*.test.js` (Node/TypeScript)
+   - Files named `*Test.java`, `*Test.kt`, `*Spec.kt` (Java/Kotlin)
+   - Files with `#[cfg(test)] mod tests` blocks (Rust)
+   - Files under `tests/`, `spec/`, `__tests__/`, `test/` directories
+   - Files with `describe(`, `it(`, `test(` calls (JavaScript frameworks)
+2. Categorise tests by layer: unit (isolated, no I/O), integration (multiple components, real interfaces), e2e (full system)
+3. Count tests per layer and per source module being tested
+
+### Accelerator tools (optional)
 
 ```bash
-# Rust test count by crate
-for crate_name in $(cargo metadata --no-deps --format-version=1 | jq -r '.packages[].name'); do
-  count=$(cargo test -p "$crate_name" -- --list 2>/dev/null | grep -c ': test$')
-  echo "$crate_name: $count tests"
-done
+# Rust
+cargo test --workspace -- --list 2>/dev/null
 
-# Rust test count by module (primary crate)
-cargo test -p target_crate -- --list 2>/dev/null | \
-  sed 's/::.*//' | sort | uniq -c | sort -rn | head -20
+# Python
+pytest --collect-only -q 2>/dev/null
 
-# Python test count
-find tests/ -name 'test_*.py' -exec grep -c 'def test_' {} + 2>/dev/null | \
-  awk -F: '{sum+=$2; print} END{print "TOTAL: " sum}'
+# Go
+go test ./... -list '.*' 2>/dev/null
 
-# TypeScript/React test count
-find desktop/src -name '*.test.tsx' -o -name '*.test.ts' 2>/dev/null | \
-  xargs grep -c 'it(\|test(' 2>/dev/null | \
-  awk -F: '{sum+=$2; print} END{print "TOTAL: " sum}'
+# Node / TypeScript (Jest)
+jest --listTests 2>/dev/null
 
-# Test type classification (unit vs functional vs integration)
-echo "=== Unit tests (no DB, no I/O) ==="
-grep -rn '#\[test\]' src/ --include='*.rs' | wc -l
-
-echo "=== Functional tests (in-memory SQLite) ==="
-grep -rn 'setup_test_db\|create_test_pool\|in_memory' src/ --include='*.rs' | wc -l
-
-echo "=== Integration tests ==="
-find tests/ -name '*.rs' -exec grep -c '#\[test\]\|#\[tokio::test\]' {} + 2>/dev/null
+# Node / TypeScript (Vitest)
+vitest list 2>/dev/null
 ```
 
 ### Deliverables
 
-- Test inventory table (language, crate/module, count, type)
+- Test inventory table (language, module, count, type)
 - Total test count and breakdown by category
 
 ---
@@ -78,35 +77,40 @@ find tests/ -name '*.rs' -exec grep -c '#\[test\]\|#\[tokio::test\]' {} + 2>/dev
 
 **Goal:** Estimate test coverage and identify module-level gaps.
 
-### Steps
+### LLM steps
+
+1. Read the source module list from Phase 1 alongside the test inventory
+2. For each public function, method, or class in source: check whether at least one test file imports or references it
+3. Note modules with zero test coverage (no test file references any symbol from them)
+4. Note modules with only happy-path tests (no error case, boundary, or negative tests visible)
+5. This is an approximation — exact line coverage requires tools — but it gives a meaningful structural coverage picture
+
+### Accelerator tools (optional)
 
 ```bash
-# Heuristic: modules with code but no tests
-for dir in src/services src/db src/api; do
-  for file in "$dir"/*.rs; do
-    [ "$(basename "$file")" = "mod.rs" ] && continue
-    module=$(basename "$file" .rs)
-    test_count=$(grep -c '#\[test\]' "$file" 2>/dev/null || echo 0)
-    if [ "$test_count" -eq 0 ]; then
-      echo "NO TESTS: $file"
-    fi
-  done
-done
+# Rust (requires cargo-llvm-cov)
+cargo llvm-cov --workspace 2>/dev/null
 
-# Coverage tool (if available)
-# cargo tarpaulin --workspace --out json 2>/dev/null
+# Python
+pytest --cov=src --cov-report=term-missing 2>/dev/null
 
-# Access control action coverage check
-total_actions=$(grep -c 'sub_task:' config/services/access-control-config.yaml 2>/dev/null || echo 0)
-tested_actions=$(grep -c 'sub_task' tests/boundary_tests.rs 2>/dev/null || echo 0)
-echo "Access control: $tested_actions / $total_actions actions tested"
+# Go
+go test ./... -cover 2>/dev/null
+
+# Node / TypeScript (Jest)
+jest --coverage 2>/dev/null
+
+# Node / TypeScript (Vitest)
+vitest run --coverage 2>/dev/null
 ```
+
+Coverage output shows line/branch percentages per module. Cross-reference with the source module list to identify gaps.
 
 ### Thresholds
 
 | Metric | Phase 1B Target | Phase 2 Target |
 |--------|----------------|----------------|
-| Rust line coverage (heuristic) | 60% | 75% |
+| Line coverage (heuristic) | 60% | 75% |
 | Module-level gap count | <10 | <5 |
 | Access Control Coverage | 100% | 100% |
 
@@ -125,30 +129,29 @@ echo "Access control: $tested_actions / $total_actions actions tested"
 
 **Goal:** Assess test quality beyond mere count — are tests meaningful?
 
-### Steps
+### LLM steps
+
+1. Read a sample of test files (at minimum: one per test layer, one per major module)
+2. For each test: check that it has a meaningful name describing behaviour and condition, not just the function name
+3. Check assertion density: does each test assert something, or does it just execute code?
+4. Check for tests that assert nothing (pass unconditionally) — these are false confidence
+5. Check for tests that test implementation details rather than behaviour (brittle tests)
+6. These quality indicators are language-agnostic
+
+### Accelerator tools (optional)
 
 ```bash
-# Assertion density (assertions per test)
-total_tests=$(grep -rn '#\[test\]\|#\[tokio::test\]' src/ tests/ --include='*.rs' | wc -l)
-total_asserts=$(grep -rn 'assert!\|assert_eq!\|assert_ne!\|assert_matches!' src/ tests/ --include='*.rs' | \
-  grep -v '// ' | wc -l)
-echo "Assertion density: $total_asserts / $total_tests = $(echo "scale=2; $total_asserts / $total_tests" | bc) per test"
+# Rust — assertion keywords
+grep -rn 'assert!\|assert_eq!\|assert_ne!\|assert_matches!' tests/ src/ 2>/dev/null | grep -v '^\s*//'
 
-# Happy-path ratio (tests without error/edge case indicators)
-happy=$(grep -rn '#\[test\]\|#\[tokio::test\]' src/ tests/ --include='*.rs' -l | \
-  xargs grep -L 'error\|err\|invalid\|reject\|fail\|empty\|missing\|overflow\|boundary' | wc -l)
-total_files=$(grep -rn '#\[test\]\|#\[tokio::test\]' src/ tests/ --include='*.rs' -l | wc -l)
-echo "Happy-path only files: $happy / $total_files"
+# Python — assertion keywords
+grep -rn 'assert \|assertEqual\|assertRaises\|pytest.raises' tests/ 2>/dev/null | grep -v '^\s*#'
 
-# Error case coverage
-error_tests=$(grep -rn 'error\|err(\|invalid\|reject\|should_fail\|expect_err' src/ tests/ --include='*.rs' | \
-  grep -v '^\s*//' | wc -l)
-echo "Error-case test lines: $error_tests"
+# Go — assertion keywords
+grep -rn 't\.Error\|t\.Fatal\|require\.\|assert\.' . --include='*_test.go' 2>/dev/null
 
-# Boundary/edge case tests
-edge_tests=$(grep -rn 'empty\|zero\|max\|min\|overflow\|boundary\|edge' src/ tests/ --include='*.rs' | \
-  grep -v '^\s*//' | wc -l)
-echo "Edge-case test lines: $edge_tests"
+# Node / TypeScript — assertion keywords (Jest/Vitest)
+grep -rn 'expect(\|toBe(\|toEqual(\|toThrow(\|should\.' . --include='*.test.*' --include='*.spec.*' 2>/dev/null
 ```
 
 ### Thresholds
@@ -174,35 +177,29 @@ echo "Edge-case test lines: $edge_tests"
 
 **Goal:** Verify test suite aligns with test mandates and service test manifests.
 
-### Steps
+### LLM steps
 
-Per-service manifest compliance check (minimum requirements):
+1. Read source modules and test modules together
+2. For each source module, verify a corresponding test module exists (naming convention varies: `foo.rs` → `tests/test_foo.rs` or inline `#[cfg(test)]`; `foo.py` → `test_foo.py`; `foo.go` → `foo_test.go`)
+3. Flag source modules with no corresponding test module
+4. Flag test modules that test a module which no longer exists (orphan tests)
+5. Work through the Test Mandate Checklist below, marking each item pass/fail with evidence
+
+### Accelerator tools (optional)
 
 ```bash
-for service_file in src/services/*.rs; do
-  service=$(basename "$service_file" .rs)
-  [ "$service" = "mod" ] && continue
+# List all source files alongside test files to check naming alignment
+# Rust
+find src/ -name '*.rs' ! -name 'mod.rs' | sort
+find tests/ -name '*.rs' | sort
 
-  echo "=== $service ==="
+# Python
+find src/ -name '*.py' ! -name '__init__.py' | sort
+find tests/ -name 'test_*.py' | sort
 
-  # 3 unit tests per action (minimum)
-  unit_tests=$(grep -c '#\[test\]' "$service_file" 2>/dev/null || echo 0)
-  echo "  Unit tests: $unit_tests"
-
-  # CRUD functional tests in db layer
-  db_file="src/db/${service}.rs"
-  db_tests=$(grep -c '#\[test\]\|#\[tokio::test\]' "$db_file" 2>/dev/null || echo 0)
-  echo "  DB tests: $db_tests"
-
-  # API contract tests
-  api_file="src/api/${service}.rs"
-  api_tests=$(grep -c '#\[test\]\|#\[tokio::test\]' "$api_file" 2>/dev/null || echo 0)
-  echo "  API tests: $api_tests"
-
-  # Standard column assertions (id, tenant_id, created_at)
-  col_checks=$(grep -c 'tenant_id\|created_at' "$db_file" 2>/dev/null || echo 0)
-  echo "  Column assertions: $col_checks"
-done
+# Go
+find . -name '*.go' ! -name '*_test.go' | sort
+find . -name '*_test.go' | sort
 ```
 
 ### Test Mandate Checklist Items
@@ -231,28 +228,31 @@ done
 
 **Goal:** Assess CI reliability and test suite operational health.
 
-### Steps
+### LLM steps
+
+1. Read CI configuration (`.gitlab-ci.yml`, `.github/workflows/`, `Jenkinsfile`, etc.) and verify tests run in CI
+2. Check for tests marked as skipped, ignored, or pending — count them and check whether each has an explanation
+3. Check for tests with no timeout on I/O operations — in any language, a test touching the network or filesystem should have a timeout
+4. Check that test fixtures and test data files are present and not empty
+
+### Accelerator tools (optional)
 
 ```bash
-# CI pass rate (last 20 pipeline runs)
+# Rust — ignored tests
+grep -rn '#\[ignore\]' tests/ src/ 2>/dev/null
+
+# Python — skipped tests
+grep -rn 'pytest.mark.skip\|pytest.mark.xfail\|@skip' tests/ 2>/dev/null
+
+# Go — skipped tests
+grep -rn 't\.Skip(' . --include='*_test.go' 2>/dev/null
+
+# Node / TypeScript — skipped tests (Jest/Vitest)
+grep -rn 'xit(\|xtest(\|xdescribe(\|test\.skip(\|it\.skip(' . --include='*.test.*' --include='*.spec.*' 2>/dev/null
+
+# CI pass/fail counts (GitLab)
 glab api "projects/:id/pipelines?per_page=20&status=success" 2>/dev/null | jq length
 glab api "projects/:id/pipelines?per_page=20&status=failed" 2>/dev/null | jq length
-
-# Flaky test detection (tests that fail intermittently)
-# Check CI logs for tests that passed on retry
-glab api "projects/:id/pipelines?per_page=50" 2>/dev/null | \
-  jq -r '.[].id' | head -20 | while read pid; do
-  glab api "projects/:id/pipelines/$pid/jobs" 2>/dev/null | \
-    jq -r '.[] | select(.status=="failed") | .name'
-done | sort | uniq -c | sort -rn | head -10
-
-# Suite timing
-time cargo test --workspace 2>/dev/null
-
-# Tests that take >5s individually (slow tests)
-cargo test --workspace -- --list 2>/dev/null | head -5
-# Note: Rust test framework doesn't natively report per-test timing
-# Use cargo-nextest for detailed timing if available
 ```
 
 ### Thresholds
@@ -280,30 +280,24 @@ cargo test --workspace -- --list 2>/dev/null | head -5
 
 **Goal:** Identify high-churn files with low test density — the riskiest code.
 
-### Steps
+### LLM steps
+
+1. Obtain the list of high-churn files from git log (see accelerators below)
+2. For each high-churn file, check whether a corresponding test file exists and whether that test file contains error-case or boundary tests
+3. Cross-reference bug-fix commits (commits whose message matches `fix(`) with the files they touched — flag any bug-fixed file that has no accompanying test addition in the same commit
+4. Rank findings by churn × test gap severity
+
+### Accelerator tools (optional)
 
 ```bash
-# Top 20 most-changed files (last 90 days)
-git log --since="90 days ago" --name-only --pretty=format: -- '*.rs' '*.ts' '*.py' | \
+# Top 20 most-changed source files (last 90 days)
+git log --since="90 days ago" --name-only --pretty=format: | \
+  grep -E '\.(rs|py|go|ts|js|java|kt)$' | \
   sort | uniq -c | sort -rn | head -20
 
-# Cross-reference with test coverage
-# For each high-churn file, check if corresponding test file exists
-git log --since="90 days ago" --name-only --pretty=format: -- '*.rs' | \
-  sort | uniq -c | sort -rn | head -20 | while read count file; do
-  if echo "$file" | grep -q 'src/services/\|src/db/\|src/api/'; then
-    test_count=$(grep -c '#\[test\]' "$file" 2>/dev/null || echo 0)
-    if [ "$test_count" -eq 0 ]; then
-      echo "HIGH RISK: $file ($count changes, 0 tests)"
-    fi
-  fi
-done
-
-# Files changed in bug-fix commits without corresponding test additions
+# Bug-fix commits and the files they touched
 git log --since="90 days ago" --grep='fix(' --name-only --pretty=format: | \
-  sort -u | while read file; do
-  echo "Bug-fixed without test: $file"
-done | head -10
+  grep -E '\.(rs|py|go|ts|js|java|kt)$' | sort -u | head -20
 ```
 
 ### Severity Rules
@@ -320,25 +314,26 @@ done | head -10
 
 **Goal:** Verify AI/ML-specific test quality — LLM stub coverage, golden datasets, and error handling.
 
-### Steps
+### LLM steps
+
+1. Read the source to identify all components that call an LLM or external AI service
+2. For each such component, check whether a corresponding stub, mock, or fixture file exists under the test directories (naming conventions vary: `llm_stubs/`, `fixtures/`, `mocks/`, inline fake implementations)
+3. Inspect stub files: are there error-scenario stubs (timeout, rate limit, malformed response) alongside success stubs? A fixture set with only success responses is incomplete.
+4. Check for golden-path or end-to-end tests that exercise AI-driven workflows with realistic inputs and assert on outputs
+5. Check for assertions on confidence scores, model outputs, or classification results — tests that only verify "no exception raised" are insufficient for AI components
+
+### Accelerator tools (optional)
 
 ```bash
-# StubLLM fixture inventory
-find tests/fixtures/llm_stubs/ -type f 2>/dev/null | wc -l
-ls tests/fixtures/llm_stubs/ 2>/dev/null
+# Find stub / mock / fixture files for AI components (adjust paths to project layout)
+find tests/ -type d \( -name '*stub*' -o -name '*mock*' -o -name '*fixture*' \) 2>/dev/null
+find tests/ -type f | xargs grep -l 'stub\|mock\|fake' 2>/dev/null | head -20
 
-# Services using LLM that have stubs
-grep -rn 'StubLLM\|stub_llm\|mock_llm' src/ tests/ --include='*.rs' | \
-  sed 's|/[^/]*$||' | sort -u
+# Search for error-scenario stubs across all languages
+grep -rn 'error\|malformed\|timeout\|rate_limit' tests/ 2>/dev/null | grep -v '^\s*[#//]' | wc -l
 
-# Error stub coverage (not just success stubs)
-grep -rn 'error\|malformed\|timeout\|rate_limit' tests/fixtures/llm_stubs/ 2>/dev/null | wc -l
-
-# Golden dataset / golden path tests
-grep -rn 'golden\|gold_path\|e2e_chain' src/ tests/ --include='*.rs' | wc -l
-
-# Confidence score assertions
-grep -rn 'confidence\|score' src/ tests/ --include='*.rs' | grep 'assert' | wc -l
+# Golden-path / E2E test markers
+grep -rn 'golden\|gold_path\|e2e_chain' tests/ src/ 2>/dev/null | wc -l
 ```
 
 ### Thresholds
@@ -363,12 +358,12 @@ grep -rn 'confidence\|score' src/ tests/ --include='*.rs' | grep 'assert' | wc -
 
 ## Phase 8 — Report
 
-Compile all findings into `output/YYYY-MM-DD/TR{n}-test-tomographe.md` using the report template.
+Compile all findings into `output/YYYY-MM-DD_{project_name}/TR{n}-test-tomographe.md` (see `qualitoscope/config.yaml` for `project_name`) using the report template.
 
 ### Report Contents
 
 1. **Summary table** — key metrics and scores at a glance
-2. **Test inventory** — counts by language, crate, type
+2. **Test inventory** — counts by language, module, type
 3. **Coverage assessment** — module-level gaps, access control coverage
 4. **Quality scores** — assertion density, happy-path ratio
 5. **Test mandate alignment** — per-service manifest compliance

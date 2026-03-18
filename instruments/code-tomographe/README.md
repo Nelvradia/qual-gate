@@ -19,12 +19,12 @@
 
 | Phase | Name | What It Does | Tools |
 |-------|------|-------------|-------|
-| **1** | Formatting & Linting | Verify code style compliance and catch warnings | `cargo fmt`, `cargo clippy`, `eslint`, `ktlint` |
-| **2** | Complexity | Measure cyclomatic/cognitive complexity, identify hot functions | Custom grep, LLM analysis |
-| **3** | Dead Code | Detect unused functions, unreachable paths, stale imports | `cargo clippy`, `grep`, LLM analysis |
-| **4** | Duplication | Find copy-pasted code blocks across modules | Structural comparison, grep |
-| **5** | Technical Debt | Inventory TODOs/FIXMEs/HACKs, instrument violations, ADR backlogs | `grep`, instrument output |
-| **6** | Dependency Health | Audit dependency freshness, size, and necessity | `cargo tree`, `cargo bloat`, `npm ls` |
+| **1** | Formatting & Linting | Verify code style compliance and catch warnings | LLM analysis + optional tooling |
+| **2** | Complexity | Measure cyclomatic/cognitive complexity, identify hot functions | LLM analysis + optional tooling |
+| **3** | Dead Code | Detect unused functions, unreachable paths, stale imports | LLM analysis + optional tooling |
+| **4** | Duplication | Find copy-pasted code blocks across modules | LLM analysis + optional tooling |
+| **5** | Technical Debt | Inventory TODOs/FIXMEs/HACKs, instrument violations, ADR backlogs | LLM analysis + optional tooling |
+| **6** | Dependency Health | See dependency-tomographe | — |
 | **7** | Report | Compile findings with debt quantification | Template filling |
 
 ---
@@ -33,55 +33,41 @@
 
 **Goal:** Verify all code passes style gates.
 
-### Rust
+### LLM steps
+
+1. Discover what formatters and linters are configured in the project by reading relevant config files. Look for: `.rustfmt.toml`, `.clippy.toml`, `pyproject.toml` (sections `[tool.ruff]` or `[tool.flake8]`), `.eslintrc*`, `.eslintignore`, `tsconfig.json`, `.clang-format`, `.clang-tidy`, `.golangci.yml`, `ktlint.yml`, `.prettierrc`, `.stylelintrc`, or equivalent. Note the configured line length limit and any rules that deviate from defaults.
+2. For each formatter or linter found, read the source files in scope and assess whether they would pass. Look for obvious style violations: inconsistent indentation, trailing whitespace, lines exceeding the project's configured length limit, missing or misplaced blank lines, and import ordering that violates the project's rules.
+3. Identify any unsafe or high-risk patterns without justification comments. This is language-specific: `unsafe` blocks in Rust must have a `// SAFETY:` comment; raw pointer arithmetic and manual memory management in C/C++ must be annotated; `eval()`, `exec()`, and dynamic code execution in Python or JavaScript must have a clear comment explaining why it is necessary.
+
+### Accelerator tools (optional)
 
 ```bash
-# Format check (should match CI gate)
-cargo fmt --all --check 2>&1 | tee instruments/code-tomographe/output/fmt-check.txt
+# Rust (if cargo is available)
+cargo fmt --all --check 2>&1 | tee output/YYYY-MM-DD_{project_name}/scratch/code-tomographe/fmt-check.txt
 FMT_VIOLATIONS=$(cargo fmt --all --check 2>&1 | grep 'Diff in' | wc -l)
-
-# Clippy (all targets, deny warnings for strictness check)
-cargo clippy --workspace --all-targets 2>&1 | tee instruments/code-tomographe/output/clippy.txt
-CLIPPY_WARNINGS=$(grep -c 'warning\[' instruments/code-tomographe/output/clippy.txt 2>/dev/null || echo 0)
-CLIPPY_ERRORS=$(grep -c 'error\[' instruments/code-tomographe/output/clippy.txt 2>/dev/null || echo 0)
-
-# Unsafe code audit
+cargo clippy --workspace --all-targets 2>&1 | tee output/YYYY-MM-DD_{project_name}/scratch/code-tomographe/clippy.txt
+LINTER_WARNINGS=$(grep -c 'warning\[' output/YYYY-MM-DD_{project_name}/scratch/code-tomographe/clippy.txt 2>/dev/null || echo 0)
+LINTER_ERRORS=$(grep -c 'error\[' output/YYYY-MM-DD_{project_name}/scratch/code-tomographe/clippy.txt 2>/dev/null || echo 0)
+# Unsafe blocks without SAFETY justification
 grep -rn 'unsafe' src/ --include='*.rs' | grep -v '// SAFETY:' | wc -l
-# Every unsafe block should have a // SAFETY: justification comment
-```
 
-### TypeScript
+# TypeScript/JavaScript (if Node is available)
+npx eslint src/ --format json 2>/dev/null > output/YYYY-MM-DD_{project_name}/scratch/code-tomographe/eslint.json
+npx tsc --noEmit 2>&1 | tee output/YYYY-MM-DD_{project_name}/scratch/code-tomographe/tsc-check.txt
 
-```bash
-cd apps/desktop
-npx eslint src/ --format json 2>/dev/null > ../../instruments/code-tomographe/output/eslint.json
-npx tsc --noEmit 2>&1 | tee ../../instruments/code-tomographe/output/tsc-check.txt
-cd ../..
-```
-
-### Kotlin
-
-```bash
-# If ktlint available
-cd apps/android
-./gradlew ktlintCheck 2>&1 | tee ../../instruments/code-tomographe/output/ktlint.txt 2>/dev/null
-cd ../..
-# Fallback: check for obvious style issues
-grep -rn 'var ' apps/android/ --include='*.kt' | grep -v 'val\|override\|private var' | wc -l
-# Mutable state should be minimized in Compose
+# Kotlin (if ktlint is available)
+./gradlew ktlintCheck 2>&1 | tee output/YYYY-MM-DD_{project_name}/scratch/code-tomographe/ktlint.txt
 ```
 
 ### Severity Rules
 
 | Finding | Severity |
 |---------|----------|
-| `cargo fmt` failures (CI should catch) | **Major** (if CI not blocking) / **OK** (if CI blocks) |
-| Clippy errors | **Major** |
-| Clippy warnings >20 | **Minor** |
-| Clippy warnings >50 | **Major** |
-| Unsafe block without SAFETY comment | **Minor** |
-| TypeScript type errors | **Major** |
-| ESLint errors | **Minor** |
+| Formatter violations (CI should catch) | **Major** (if CI not blocking) / **OK** (if CI blocks) |
+| Linter errors | **Major** |
+| Linter warnings >20 | **Minor** |
+| Linter warnings >50 | **Major** |
+| Unsafe/high-risk block without justification comment | **Minor** |
 
 ---
 
@@ -89,42 +75,40 @@ grep -rn 'var ' apps/android/ --include='*.kt' | grep -v 'val\|override\|private
 
 **Goal:** Identify overly complex functions that are hard to test, review, and maintain.
 
-### Steps
+### LLM steps
+
+1. Read all source files in scope.
+2. For each function or method, estimate its length in lines and its nesting depth by reading the code directly. Count indentation levels: each nested block (conditional, loop, match arm, callback, try/catch) adds one level.
+3. Flag functions that appear to do too many things — multiple unrelated responsibilities in a single body, deeply nested control flow (more than 4 levels), or excessive length. These are universal complexity indicators regardless of language.
+
+### Accelerator tools (optional)
 
 ```bash
-# Function length analysis (Rust)
-# Find functions longer than 50 lines
-grep -n 'pub fn \|pub async fn \|fn ' src/ -r --include='*.rs' | while read line; do
-  file=$(echo "$line" | cut -d: -f1)
-  linenum=$(echo "$line" | cut -d: -f2)
-  funcname=$(echo "$line" | sed 's/.*fn \([a-z_]*\).*/\1/')
-  # Count lines until next fn or closing brace at column 0
-  # (heuristic — exact requires AST parsing)
-  echo "$file:$linenum:$funcname"
-done > instruments/code-tomographe/output/function-list.txt
-
-# Long functions (>50 lines — heuristic via brace counting)
-# This is approximate; Claude Code can do better with LLM analysis
+# Rust (if cargo is available)
+# Long functions — heuristic via brace counting
 awk '/^[[:space:]]*pub (async )?fn / { start=NR; name=$0 }
      /^}$/ && start { len=NR-start; if(len>50) print FILENAME":"start":"name" ("len" lines)"; start=0 }
     ' src/**/*.rs 2>/dev/null
 
-# Nesting depth analysis
-# Find deeply nested code (>4 levels of indentation)
-grep -rn '                    ' src/ --include='*.rs' | \
-  grep -v '^\s*//' | grep -v '^\s*\*' | head -20
+# Nesting depth — lines with >4 levels of indentation (adjust spaces per project style)
+grep -rn '                    ' src/ --include='*.rs' | grep -v '^\s*//' | grep -v '^\s*\*' | head -20
 
-# Match arms count (complex match statements)
-grep -c 'match ' src/**/*.rs 2>/dev/null | awk -F: '$2 > 5 {print}'
+# Python (if radon is available)
+radon cc -s src/
+
+# Go (if gocyclo is available)
+gocyclo ./...
+
+# JavaScript/TypeScript (if Node is available)
+npx complexity-report src/
 ```
 
 ### Complexity Checklist
 
 - [ ] No function exceeds 80 lines (soft limit: 50)
 - [ ] No function has >4 levels of nesting
-- [ ] Match statements have <15 arms (otherwise consider refactoring)
 - [ ] No file exceeds 500 lines (soft limit: 300)
-- [ ] Handler functions in `api/` are thin (delegate to service layer)
+- [ ] Handler/controller functions are thin (delegate to service layer)
 
 ### Severity Rules
 
@@ -142,35 +126,25 @@ grep -c 'match ' src/**/*.rs 2>/dev/null | awk -F: '$2 > 5 {print}'
 
 **Goal:** Detect code that exists but is never called.
 
-### Steps
+### LLM steps
+
+1. Read all source files and build a list of declared public functions, methods, classes, and modules.
+2. Search for references to each symbol across the entire codebase. If a public symbol is defined but never referenced outside its own file or test files, flag it as potentially dead.
+3. Look for commented-out code blocks — these are a language-agnostic indicator of dead code that has not been formally removed.
+4. Look for conditional branches that are always true or always false due to hardcoded values or constants (e.g., `if DEBUG_MODE:` where `DEBUG_MODE = False` is never overridden, feature flags that are always disabled).
+
+### Accelerator tools (optional)
 
 ```bash
-# Clippy dead code detection (requires nightly for some lints)
+# Rust (if cargo is available)
 cargo clippy --workspace -- -W dead_code 2>&1 | grep 'dead_code' | head -20
-
-# Unused imports
 cargo clippy --workspace -- -W unused_imports 2>&1 | grep 'unused_import' | head -20
 
-# Public functions not called from outside their module
-# Heuristic: find pub fn definitions, search for their usage
-grep -rn 'pub fn \|pub async fn ' src/ --include='*.rs' | \
-  sed 's/.*pub \(async \)\?fn \([a-z_]*\).*/\2/' | sort -u | while read fn; do
-  count=$(grep -rn "\b$fn\b" src/ --include='*.rs' | grep -v 'pub.*fn ' | wc -l)
-  if [ "$count" -le 1 ]; then
-    echo "POTENTIALLY_DEAD: $fn (used $count times outside definition)"
-  fi
-done 2>/dev/null | head -30
+# Python (if vulture is available)
+vulture src/
 
-# Stale feature flags / cfg attributes
-grep -rn '#\[cfg(' src/ --include='*.rs' | grep -v 'test\|target' | head -10
-
-# Python dead code
-grep -rn 'def ' src/ --include='*.py' | sed 's/.*def \([a-z_]*\).*/\1/' | sort -u | while read fn; do
-  count=$(grep -rn "\b$fn\b" src/ tests/ --include='*.py' | grep -v 'def ' | wc -l)
-  if [ "$count" -eq 0 ]; then
-    echo "POTENTIALLY_DEAD: $fn"
-  fi
-done 2>/dev/null | head -20
+# TypeScript (if ts-prune is available)
+npx ts-prune
 ```
 
 ### Severity Rules
@@ -188,24 +162,24 @@ done 2>/dev/null | head -20
 
 **Goal:** Find copy-pasted code that should be extracted into shared functions.
 
-### Steps
+### LLM steps
+
+1. Read source files and identify structurally similar functions: same parameter shapes, same logic patterns, similar SQL queries, similar error handling boilerplate. Duplication is a structural problem — this analysis applies to any language.
+2. Flag blocks of more than 10 lines that appear copy-pasted with only variable name changes. These are extraction candidates regardless of language.
+
+### Accelerator tools (optional)
 
 ```bash
-# Find similar function signatures across modules
+# Cross-language (if jscpd is available — works across most languages)
+jscpd --min-lines 10 .
+
+# Rust — similar function signatures across modules
 grep -rn 'pub fn \|pub async fn ' src/ --include='*.rs' | \
   sed 's/.*fn \([a-z_]*\)(\(.*\)).*$/\1|\2/' | sort | uniq -d
 
-# Find repeated SQL patterns
-grep -rn 'SELECT\|INSERT\|UPDATE\|DELETE' src/db/ --include='*.rs' | \
+# Rust — repeated SQL patterns
+grep -rn 'SELECT\|INSERT\|UPDATE\|DELETE' src/ --include='*.rs' | \
   sed 's/.*"\(.*\)".*/\1/' | sort | uniq -c | sort -rn | head -10
-
-# Find repeated error handling patterns
-grep -rn 'map_err\|unwrap_or\|expect(' src/ --include='*.rs' | \
-  sed 's/.*\(map_err.*\|unwrap_or.*\|expect(.*\)/\1/' | sort | uniq -c | sort -rn | head -10
-
-# Find similar struct definitions
-grep -rn 'pub struct ' src/ --include='*.rs' | head -30
-# Look for structs with very similar fields (manual/LLM review)
 ```
 
 ### Severity Rules
@@ -222,33 +196,26 @@ grep -rn 'pub struct ' src/ --include='*.rs' | head -30
 
 **Goal:** Inventory and quantify known technical debt.
 
-### Steps
+### LLM steps
+
+1. Search all source files for debt marker comments: `TODO`, `FIXME`, `HACK`, `XXX`, `TEMP`, `WORKAROUND`. For each occurrence, note the file, a summary of what it says, and whether a date or issue reference is present.
+2. Cross-reference with the output of other instrument phases — unresolved findings from previous scans are also debt and should be included in the inventory.
+3. Assess whether the ADR backlog in `.claude/decisions/` contains any items with `Status: Pending` or `Status: Revisit`. These represent deferred architectural decisions that carry ongoing risk.
+
+### Accelerator tools (optional)
 
 ```bash
-# TODO/FIXME/HACK inventory
+# Debt marker inventory
 echo "=== TODOs ==="
-grep -rn 'TODO\|FIXME\|HACK\|XXX\|TEMP\|WORKAROUND' \
-  src/ --include='*.rs' --include='*.ts' --include='*.kt' --include='*.py' | wc -l
+grep -rn 'TODO\|FIXME\|HACK\|XXX\|TEMP\|WORKAROUND' src/ | wc -l
 
 # Per-category breakdown
 for tag in TODO FIXME HACK XXX TEMP WORKAROUND; do
-  count=$(grep -rn "$tag" src/ \
-    --include='*.rs' --include='*.ts' --include='*.kt' --include='*.py' 2>/dev/null | wc -l)
+  count=$(grep -rn "$tag" src/ 2>/dev/null | wc -l)
   echo "$tag: $count"
 done
 
-# Age of TODOs (how long have they existed?)
-grep -rn 'TODO\|FIXME' src/ --include='*.rs' | while read line; do
-  file=$(echo "$line" | cut -d: -f1)
-  linenum=$(echo "$line" | cut -d: -f2)
-  age=$(git log -1 --format="%ar" -L "$linenum,$linenum:$file" 2>/dev/null | head -1)
-  echo "$line — age: ${age:-unknown}"
-done 2>/dev/null | head -20
-
-# Instrument violations (read from existing output)
-cat output/*/AR*-architecture.md 2>/dev/null || echo "No architecture instrument output found"
-
-# ADR backlog (decisions marked as pending/revisit)
+# ADR backlog
 grep -rn 'Status: Pending\|Status: Revisit\|revisit_condition' .claude/decisions/ 2>/dev/null | wc -l
 ```
 
@@ -266,35 +233,13 @@ grep -rn 'Status: Pending\|Status: Revisit\|revisit_condition' .claude/decisions
 
 ## Phase 6 — Dependency Health
 
-**Goal:** Audit dependencies for freshness, bloat, and necessity.
-
-### Steps
-
-```bash
-# Dependency count
-echo "Rust direct deps: $(grep -c '^\[dependencies' Cargo.toml 2>/dev/null || cargo metadata --format-version 1 2>/dev/null | jq '.packages | length')"
-
-# Outdated Rust dependencies
-cargo outdated 2>/dev/null | head -20
-
-# Dependency tree depth
-cargo tree --depth 1 2>/dev/null | wc -l
-
-# Binary size contributors (if cargo-bloat available)
-cargo bloat --release --crates 2>/dev/null | head -15
-
-# Node dependency count
-cd apps/desktop && echo "Node deps: $(cat package.json | grep -c '\":')" && cd ../..
-
-# Unused dependencies (heuristic)
-cargo machete 2>/dev/null || echo "cargo-machete not available"
-```
+This phase is handled by the `dependency-tomographe`. Run `instruments/dependency-tomographe/README.md` Phase 4 (Dependency Health) and Phase 5 (Version & Pinning Discipline) for full dependency analysis. The code-tomographe does not duplicate that work.
 
 ---
 
 ## Phase 7 — Report
 
-Compile into `output/YYYY-MM-DD/CQ{n}-code.md`.
+Compile into `output/YYYY-MM-DD_{project_name}/CQ{n}-code.md` (see `qualitoscope/config.yaml` for `project_name`).
 
 ---
 
@@ -303,8 +248,8 @@ Compile into `output/YYYY-MM-DD/CQ{n}-code.md`.
 ```yaml
 thresholds:
   fmt_violations: 0
-  clippy_warnings_max: 20
-  clippy_errors_max: 0
+  linter_errors_max: 0
+  linter_warnings_max: 20
   function_length_soft: 50
   function_length_hard: 100
   file_length_soft: 300
@@ -317,9 +262,7 @@ thresholds:
   duplication_threshold: 3
 
 scope:
-  rust_dirs: [src/]
-  ts_dirs: [apps/desktop/src/]
-  kotlin_dirs: [apps/android/]
+  source_dirs: []              # fill in per project, e.g. [src/, lib/]
   exclude: [vendor/, target/, node_modules/, build/]
 ```
 

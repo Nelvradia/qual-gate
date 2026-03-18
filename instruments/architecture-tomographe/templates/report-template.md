@@ -13,8 +13,8 @@ verdict: {verdict}
 | Circular dependencies | | |
 | Layer violations | | |
 | God modules (>800 lines) | | |
-| Enforcer independence | | |
-| Watchdog independence | | |
+| Authorization service independence | | |
+| Health monitor independence | | |
 | Skill isolation | | |
 | Code-vs-docs drift items | | |
 | Evolution readiness score | | |

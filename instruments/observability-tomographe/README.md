@@ -1,6 +1,6 @@
 # observability-tomographe/
 
-**Observability health scanner.** Audits Prometheus metrics coverage, alerting rules, log quality, Grafana dashboards, health endpoints, and audit trail completeness.
+**Observability health scanner.** Audits metrics coverage, alerting rules, log quality, dashboards, health endpoints, and audit trail completeness.
 
 **Covers Sections:** S7 (Observability & Monitoring)
 
@@ -20,9 +20,9 @@
 | Phase | Name | What It Does | Requires Running Services? |
 |-------|------|-------------|---------------------------|
 | **1** | Metrics Coverage | Compare metrics registry docs vs actual registered metrics | No |
-| **2** | Alerting Rules | Validate Prometheus alert rules, thresholds, routing | No |
+| **2** | Alerting Rules | Validate alert rules, thresholds, routing | No |
 | **3** | Log Quality | Audit structured logging format, levels, sensitive data | No |
-| **4** | Dashboard Health | Validate Grafana dashboards reference real metrics | No (reads JSON) |
+| **4** | Dashboard Health | Validate dashboards reference real metrics | No (reads JSON) |
 | **5** | Health Endpoints | Verify health check implementation and response format | Partial |
 | **6** | Audit Trail | Verify access control decisions, security events are logged | No |
 | **7** | Report | Compile findings | No |
@@ -33,33 +33,38 @@
 
 **Goal:** Verify that all documented metrics are actually registered in code, and all registered metrics are documented.
 
+### LLM steps
+
+1. Read source files in the directories listed under `scope.metrics_source_dirs` to identify where metrics are emitted. The implementation varies by language and library (Prometheus client in Rust/Python/Go/Java, StatsD, OpenTelemetry, etc.) but all share a pattern: metric registration with a name and type, followed by increment/observe/set calls.
+2. Compare discovered metrics against the metrics documentation file specified in `scope.metrics_doc`.
+3. Check that key system events are instrumented: request counts, request latency, error rates, queue depths, database query counts/latency — these are universal regardless of language.
+4. Look for metrics documentation (a metrics registry file, a Prometheus scrape config, or equivalent) and verify it matches what is in the code.
+
+### Accelerator tools (optional)
+
 ```bash
-# Metrics registered in code
-grep -rn 'register\|counter!\|histogram!\|gauge!\|IntCounter\|Histogram\|Gauge' \
-  src/ --include='*.rs' --include='*.py' 2>/dev/null | \
-  grep -oP '[a-z]+_[a-z_]+' | sort -u > /tmp/code_metrics.txt
-echo "Metrics in code: $(wc -l < /tmp/code_metrics.txt)"
+# Rust — prometheus / prometheus-client crates
+grep -rn 'register_counter\|register_histogram\|register_gauge\|counter!\|histogram!\|gauge!\|IntCounter\|Histogram\|Gauge' \
+  src/ --include='*.rs' 2>/dev/null | grep -oP '[a-z][a-z0-9_]+' | sort -u
 
-# Metrics documented in metrics registry
-grep -oP '[a-z]+_[a-z_]+' docs/metrics-registry.md 2>/dev/null | \
-  sort -u > /tmp/doc_metrics.txt
-echo "Metrics in docs: $(wc -l < /tmp/doc_metrics.txt)"
+# Python — prometheus_client library
+grep -rn 'Counter(\|Histogram(\|Gauge(\|Summary(\|register(' \
+  src/ --include='*.py' 2>/dev/null | grep -oP '[a-z][a-z0-9_]+' | sort -u
 
-# Missing from code (documented but not registered)
-comm -23 /tmp/doc_metrics.txt /tmp/code_metrics.txt > /tmp/missing_from_code.txt
-echo "Documented but not in code: $(wc -l < /tmp/missing_from_code.txt)"
-cat /tmp/missing_from_code.txt
+# Go — prometheus/client_golang
+grep -rn 'prometheus\.NewCounter\|prometheus\.NewHistogram\|prometheus\.NewGauge\|MustRegister' \
+  . --include='*.go' 2>/dev/null | grep -oP '[a-z][a-z0-9_]+' | sort -u
 
-# Missing from docs (registered but not documented)
-comm -13 /tmp/doc_metrics.txt /tmp/code_metrics.txt > /tmp/missing_from_docs.txt
-echo "In code but not documented: $(wc -l < /tmp/missing_from_docs.txt)"
-cat /tmp/missing_from_docs.txt
+# Java — Micrometer / prometheus_simpleclient
+grep -rn 'Counter\.builder\|Histogram\.build\|Gauge\.builder\|registry\.register' \
+  src/ --include='*.java' 2>/dev/null | grep -oP '[a-z][a-z0-9_]+' | sort -u
 
-# Metric naming convention (should follow a consistent prefix)
-grep -rn 'register\|counter!\|histogram!\|gauge!' src/ --include='*.rs' --include='*.py' | head -10
+# OpenTelemetry (language-agnostic pattern)
+grep -rn 'createCounter\|createHistogram\|createGauge\|createObservableGauge' \
+  src/ 2>/dev/null | grep -oP '[a-z][a-z0-9_]+' | sort -u
 
-# Metric labels consistency
-grep -rn 'label_names\|with_label_values\|.labels(' src/ --include='*.rs' --include='*.py' | head -20
+# Metrics referenced in documentation
+grep -oP '[a-z][a-z0-9_]+' docs/metrics-registry.md 2>/dev/null | sort -u > /tmp/doc_metrics.txt
 ```
 
 ### Severity Rules
@@ -76,10 +81,18 @@ grep -rn 'label_names\|with_label_values\|.labels(' src/ --include='*.rs' --incl
 
 ## Phase 2 — Alerting Rules
 
-**Goal:** Validate Prometheus alerting rules are correct and useful.
+**Goal:** Validate alerting rules are correct and useful.
+
+### LLM steps
+
+1. Read alert rule files (Prometheus rules, PagerDuty config, Grafana alerts, or equivalent) from the paths listed in `scope.alert_rules`.
+2. Verify that critical system states have alerts: service down, error rate spike, resource exhaustion.
+3. Check alert thresholds against the metrics documentation to confirm the referenced metric names exist and the threshold values are realistic.
+
+### Accelerator tools (optional)
 
 ```bash
-# Alert rules file existence
+# Locate alert rule files
 find config/ infra/ -name '*.rules.yml' -o -name 'alerts.yml' -o -name '*.rules' 2>/dev/null
 
 # Validate with promtool (if available)
@@ -90,7 +103,7 @@ done
 # Count alert rules
 grep -c 'alert:' config/prometheus/*.rules.yml infra/prometheus/*.rules.yml 2>/dev/null
 
-# Critical alerts that should exist (adapt to your service names)
+# Check for critical alert names (adapt to your service names)
 for alert in "ServiceDown" "HighMemoryUsage" "DiskSpaceLow" "HighErrorRate" "CertificateExpiry" "BackupFailed"; do
   grep -q "$alert" config/prometheus/*.rules.yml infra/prometheus/*.rules.yml 2>/dev/null && \
     echo "OK: $alert exists" || echo "MISSING: $alert"
@@ -121,36 +134,46 @@ grep 'severity:' config/prometheus/*.rules.yml infra/prometheus/*.rules.yml 2>/d
 
 **Goal:** Audit structured logging for consistency, levels, and sensitive data.
 
+### LLM steps
+
+1. Read source files in `scope.source_dirs` to identify logging calls. The logging framework varies (tracing/log in Rust, logging/structlog in Python, winston/pino in Node, log4j/slf4j in Java, zap/zerolog in Go) but the quality criteria are universal.
+2. Check that logs use structured format (key=value pairs or JSON) rather than free-form strings where possible.
+3. Check that appropriate levels are used: DEBUG for internal state, INFO for lifecycle events, WARN for degraded-but-functional, ERROR for failures requiring attention.
+4. Check that errors are not swallowed silently (catch blocks with no logging, empty error handlers).
+5. Check that no sensitive data (passwords, tokens, PII) appears in log statements.
+
+### Accelerator tools (optional)
+
 ```bash
-# Logging framework
-grep -rn 'tracing\|log::\|slog\|env_logger\|logging\|loguru' \
-  Cargo.toml pyproject.toml requirements.txt 2>/dev/null
+# Rust — tracing / log crates
+grep -rn 'info!\|warn!\|error!\|debug!\|trace!\|tracing::' \
+  src/ --include='*.rs' | head -20
 
-# Structured fields in log statements
-grep -rn 'tracing::\|info!\|warn!\|error!\|debug!\|trace!\|logging\.' src/ --include='*.rs' --include='*.py' | head -20
-# Look for structured fields (key = value) vs unstructured strings
+# Python — stdlib logging / structlog / loguru
+grep -rn 'logging\.\|logger\.\|structlog\.\|loguru\.' \
+  src/ --include='*.py' | head -20
 
-# Log level distribution
-for level in trace debug info warn error; do
-  count=$(grep -rn "${level}!\|${level}(" src/ --include='*.rs' --include='*.py' 2>/dev/null | wc -l)
-  echo "$level: $count"
-done
+# Node.js — winston / pino
+grep -rn 'logger\.\|winston\.\|pino(' \
+  src/ --include='*.js' --include='*.ts' | head -20
 
-# Sensitive data in logs (should NOT appear)
-grep -rn 'password\|token\|secret\|bearer\|key=' src/ --include='*.rs' --include='*.py' | \
-  grep -E 'info!|warn!|error!|debug!|logging\.' | head -10
-# These should be redacted or absent
+# Java — slf4j / log4j / logback
+grep -rn 'log\.info\|log\.warn\|log\.error\|log\.debug\|LOGGER\.' \
+  src/ --include='*.java' | head -20
 
-# Error context (errors should include enough context to debug)
-grep -A2 'error!' src/ --include='*.rs' -r | head -30
+# Go — zap / zerolog
+grep -rn 'zap\.\|log\.Info\|log\.Error\|logger\.Info\|zerolog\.' \
+  . --include='*.go' | head -20
 
-# Log output format (JSON recommended for parsing)
-grep -rn 'json\|Json\|fmt.*json\|subscriber.*json' src/ --include='*.rs' --include='*.py' | head -5
+# Sensitive data exposure across all languages
+grep -rn 'password\|token\|secret\|bearer\|api_key\|apikey' src/ | \
+  grep -iE 'info|warn|error|debug|log' | head -10
+# Results here should be reviewed — confirm these are not logging raw values
 ```
 
 ### Checklist
 
-- [ ] Structured logging used (e.g., tracing crate, structured Python logging)
+- [ ] Structured logging used (key=value pairs or JSON, not free-form strings)
 - [ ] JSON output format configured (for log aggregation)
 - [ ] Log levels appropriate (no debug in hot paths for production)
 - [ ] No sensitive data in log output (tokens, passwords, PII)
@@ -161,23 +184,30 @@ grep -rn 'json\|Json\|fmt.*json\|subscriber.*json' src/ --include='*.rs' --inclu
 
 ## Phase 4 — Dashboard Health
 
-**Goal:** Verify Grafana dashboards reference real metrics and provide useful visibility.
+**Goal:** Verify dashboards reference real metrics and provide useful visibility.
+
+### LLM steps
+
+1. Read Grafana dashboard JSON files or equivalent dashboard config from the paths listed in `scope.dashboards`.
+2. Verify that key metrics identified in Phase 1 have panels in at least one dashboard.
+3. Check for stale panels referencing metrics that no longer exist in the codebase.
+
+### Accelerator tools (optional)
 
 ```bash
-# Dashboard JSON files
+# Locate dashboard JSON files
 find config/ infra/ -name '*.json' -path '*grafana*' -path '*dashboard*' 2>/dev/null
 find config/ infra/ -name '*.json' -path '*dashboard*' 2>/dev/null
 
 # Metrics referenced by dashboards
 for f in $(find config/ infra/ -name '*.json' -path '*dashboard*' 2>/dev/null); do
   echo "=== $(basename $f) ==="
-  grep -oP '[a-z]+_[a-z_]+' "$f" | sort -u
+  grep -oP '[a-z][a-z0-9_]+' "$f" | sort -u
 done
 
-# Dashboards vs available metrics
 # Cross-reference: are all dashboard metrics actually registered?
 for f in $(find config/ infra/ -name '*.json' -path '*dashboard*' 2>/dev/null); do
-  grep -oP '[a-z]+_[a-z_]+' "$f" | sort -u | while read metric; do
+  grep -oP '[a-z][a-z0-9_]+' "$f" | sort -u | while read metric; do
     grep -q "$metric" /tmp/code_metrics.txt 2>/dev/null || echo "MISSING_METRIC: $metric in $(basename $f)"
   done
 done
@@ -192,19 +222,38 @@ find config/ infra/ -name '*.json' -path '*dashboard*' 2>/dev/null | wc -l
 
 **Goal:** Verify health check implementation.
 
+### LLM steps
+
+1. Read source files in `scope.source_dirs` to identify health check endpoint implementations — look for routes or handlers named `health`, `healthz`, `readiness`, `liveness`, `ping`, or equivalent.
+2. Verify the health check actually checks the health of dependencies (database connectivity, external service availability) rather than just returning a static 200 OK.
+3. Verify the response format is machine-readable (JSON preferred) and includes status information.
+4. Check that the health endpoint does not require authentication (it needs to be callable by orchestration infrastructure).
+
+### Accelerator tools (optional)
+
 ```bash
-# Health endpoint implementation
-grep -rn 'health\|Health\|/health\|healthcheck' src/ --include='*.rs' --include='*.py' | head -10
+# Rust — actix-web / axum / warp
+grep -rn '"/health\|"/healthz\|"/readiness\|"/liveness\|health_handler\|healthcheck' \
+  src/ --include='*.rs' | head -10
 
-# What the health check returns
-grep -A20 'health' src/ --include='*.rs' --include='*.py' -r | head -30
+# Python — FastAPI / Flask / Django
+grep -rn '@app.get.*health\|@router.get.*health\|@bp.route.*health\|url.*health' \
+  src/ --include='*.py' | head -10
 
-# Docker health checks
-grep -A5 'healthcheck:' docker-compose.yml 2>/dev/null
+# Node.js — Express / Fastify / Koa
+grep -rn "router\.get.*health\|app\.get.*health\|fastify\.get.*health" \
+  src/ --include='*.js' --include='*.ts' | head -10
 
-# Does health check verify dependencies?
-# Should check: DB accessible, dependent services reachable
-grep -rn 'db.*health\|service.*health\|check.*connection' src/ --include='*.rs' --include='*.py' | head -10
+# Go — net/http / gin / chi
+grep -rn 'HandleFunc.*health\|GET.*health\|r\.Get.*health' \
+  . --include='*.go' | head -10
+
+# Java — Spring Boot / Quarkus
+grep -rn '@GetMapping.*health\|@RequestMapping.*health\|HealthIndicator' \
+  src/ --include='*.java' | head -10
+
+# Docker health check configuration
+grep -A5 'healthcheck:' docker-compose.yml docker-compose*.yml 2>/dev/null
 ```
 
 ### Health Endpoint Checklist
@@ -224,22 +273,36 @@ grep -rn 'db.*health\|service.*health\|check.*connection' src/ --include='*.rs' 
 
 **Goal:** Verify security-relevant events are logged for forensics.
 
+### LLM steps
+
+1. Read source files handling user actions, authentication events, and data modifications from `scope.source_dirs`.
+2. Verify that security-relevant events produce audit log entries: login/logout, permission changes, data exports, administrative actions.
+3. Check that audit log entries include: who, what, when, outcome — these are universal fields regardless of language.
+4. Verify that audit logs are separate from operational logs and cannot be silently dropped.
+
+### Accelerator tools (optional)
+
 ```bash
-# Access control decision logging
-grep -rn 'audit\|decision.*log\|enforce.*log\|action.*log' src/ --include='*.rs' --include='*.py' | head -10
+# Generic audit log call patterns (adapt prefix to project convention)
+grep -rn 'audit\|audit_log\|AuditLog\|audit_event\|AuditEvent' \
+  src/ 2>/dev/null | head -20
 
-# Events that should be logged:
-for event in "auth_success" "auth_failure" "permission_grant" "permission_revoke" "action_blocked" "action_approved" "config_change"; do
-  found=$(grep -rn "$event\|$(echo $event | tr '_' '.')" src/ --include='*.rs' --include='*.py' 2>/dev/null | wc -l)
-  echo "$event: $found references"
-done
+# Rust
+grep -rn 'audit!\|audit_log!\|audit::' src/ --include='*.rs' | head -10
 
-# Audit log persistence
-grep -rn 'audit' src/ --include='*.rs' --include='*.py' --include='*.sql' | head -10
-# Should have a dedicated audit table or log file
+# Python
+grep -rn 'audit_log\.\|audit\.log\|AuditLogger\.' src/ --include='*.py' | head -10
 
-# Audit log retention
-grep -rn 'retention\|expire\|rotate\|cleanup.*audit' src/ config/ --include='*.rs' --include='*.py' --include='*.yaml' | head -5
+# Node.js
+grep -rn 'auditLog\.\|audit\.log\|auditLogger\.' \
+  src/ --include='*.js' --include='*.ts' | head -10
+
+# Java
+grep -rn 'auditLog\.\|AuditLogger\.\|AuditService\.' src/ --include='*.java' | head -10
+
+# Audit log retention config
+grep -rn 'retention\|expire\|rotate\|cleanup.*audit' \
+  src/ config/ --include='*.yaml' --include='*.toml' --include='*.json' | head -5
 ```
 
 ### Required Audit Events
@@ -256,7 +319,7 @@ grep -rn 'retention\|expire\|rotate\|cleanup.*audit' src/ config/ --include='*.r
 
 ## Output
 
-Reports are written to `output/YYYY-MM-DD/OB<N>-observability-tomographe.md`.
+Reports are written to `output/YYYY-MM-DD_{project_name}/OB{n}-observability-tomographe.md` (see `qualitoscope/config.yaml` for `project_name`).
 
 ---
 
@@ -284,12 +347,12 @@ thresholds:
     required_events: [auth_success, auth_failure, action_blocked]
 
 scope:
-  metrics_file: src/metrics.rs
+  source_dirs: []                        # list source directories to scan, e.g. [src/, lib/]
+  metrics_source_dirs: []                # dirs containing metric registration; subset of source_dirs
   metrics_doc: docs/metrics-registry.md
   alert_rules: [config/prometheus/*.rules.yml, infra/prometheus/*.rules.yml]
   dashboards: [config/grafana/dashboards/, infra/grafana/dashboards/]
   compose_file: docker-compose.yml
-  api_dir: src/api/
 ```
 
 ---

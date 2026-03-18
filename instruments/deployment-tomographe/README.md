@@ -33,6 +33,20 @@
 
 **Goal:** Verify CI pipeline is complete, correct, and properly gates releases.
 
+### LLM steps
+
+1. Discover the CI configuration by reading common CI file locations (`.gitlab-ci.yml`, `.github/workflows/*.yml`, `Jenkinsfile`, `.circleci/config.yml`, `azure-pipelines.yml`, etc.)
+2. Identify the stages/jobs and their ordering
+3. Verify the standard stages are present: lint → build → test → package → deploy (naming may vary by project)
+4. Check that fast-failing jobs (format, lint, static analysis) run first and block later stages on failure
+5. Identify any jobs configured as advisory-only (e.g., `allow_failure: true` or equivalent) — flag any that should be blocking
+6. Verify a quality gate job exists that validates quality reports before release/tag pipelines proceed
+7. Check that all jobs have timeout configuration
+
+### Accelerator tools (optional)
+
+> The commands below target GitLab CI (`.gitlab-ci.yml`). Adapt paths for other CI systems.
+
 ```bash
 # Pipeline stages
 grep '^stages:' -A 20 .gitlab-ci.yml 2>/dev/null | head -25
@@ -77,7 +91,7 @@ grep 'timeout:' .gitlab-ci.yml 2>/dev/null | head -10
 - [ ] Integration tests run on merge to main
 - [ ] Quality gate job exists and validates reports on tags
 - [ ] Build jobs produce artifacts (packages, Docker images)
-- [ ] No critical job has `allow_failure: true`
+- [ ] No critical job has `allow_failure: true` (or equivalent)
 - [ ] Timeouts configured (prevent hung jobs)
 
 ### Severity Rules
@@ -95,6 +109,19 @@ grep 'timeout:' .gitlab-ci.yml 2>/dev/null | head -10
 ## Phase 2 — Build Reproducibility
 
 **Goal:** Verify that builds are deterministic and dependencies locked.
+
+### LLM steps
+
+1. Read the CI configuration and identify the build jobs
+2. Check that base images are pinned to specific versions — flag any use of `:latest` or an unversioned tag
+3. Read the project's lockfiles (`Cargo.lock`, `package-lock.json`, `yarn.lock`, `poetry.lock`, `Pipfile.lock`, etc.) — verify they are committed and not gitignored
+4. Check that build scripts do not fetch arbitrary versions of dependencies at build time (e.g., `pip install` without pinned versions, `cargo update` in CI)
+5. Verify that the language toolchain version is pinned (e.g., `rust-toolchain.toml`, `.python-version`, `.nvmrc`, `.tool-versions`)
+6. Check whether CI cache configuration is present to avoid redundant downloads
+
+### Accelerator tools (optional)
+
+> The commands below target GitLab CI and common lockfile conventions. Adapt as needed.
 
 ```bash
 # Lockfiles committed?
@@ -140,6 +167,18 @@ grep -A5 'cache:' .gitlab-ci.yml 2>/dev/null | head -15
 
 **Goal:** Verify that all deliverable artifacts are correctly built and distributed.
 
+### LLM steps
+
+1. Read the CI configuration to identify artifact publish and push steps
+2. Verify that artifact publication (image push, package publish, release upload) only happens on main or release branches, not on every feature branch
+3. Check that image/package versions are derived from the VERSION file or git tag, not hardcoded strings
+4. Check for signing configuration — signing keys must not be committed to the repository
+5. Verify that an artifact retention or expiry policy is configured in CI
+
+### Accelerator tools (optional)
+
+> The commands below target GitLab CI artifact syntax. Adapt paths for other CI systems.
+
 ```bash
 # Build jobs and artifact generation
 grep -A20 'build' .gitlab-ci.yml 2>/dev/null | grep -E 'artifacts|package|bundle|dist'
@@ -159,7 +198,7 @@ grep -A5 'artifacts:' .gitlab-ci.yml 2>/dev/null | grep 'expire_in' | head -5
 
 - [ ] Primary artifacts built in CI (release variant)
 - [ ] Artifacts signed where applicable (signing config exists, key not in repo)
-- [ ] Docker images pushed to `<registry>` with proper tags
+- [ ] Docker images pushed to registry with proper tags
 - [ ] Artifact retention policy configured in CI
 
 ---
@@ -167,6 +206,16 @@ grep -A5 'artifacts:' .gitlab-ci.yml 2>/dev/null | grep 'expire_in' | head -5
 ## Phase 4 — Rollback & Recovery
 
 **Goal:** Verify that failed deployments can be safely reversed.
+
+### LLM steps
+
+1. Check for a rollback runbook or disaster recovery document in the `docs/` directory
+2. Read `docker-compose.yml` (if present) and verify that service images reference versioned tags, enabling rollback by re-deploying a previous version
+3. Read any database migration files and check whether down/rollback migrations are defined alongside up migrations
+4. Check `docs/`, `config/`, and compose files for backup configuration or references to a backup procedure
+5. Verify in the CI configuration that old artifact versions are retained (not immediately expired) so previous releases are recoverable
+
+### Accelerator tools (optional)
 
 ```bash
 # Rollback runbook exists?
@@ -202,6 +251,17 @@ grep 'expire\|retention\|keep' .gitlab-ci.yml 2>/dev/null | head -5
 
 **Goal:** Verify dev, CI, and prod environments are consistent.
 
+### LLM steps
+
+1. Read all Docker Compose variants in the repository root — identify which file represents prod and which represents CI or dev overrides
+2. Compare service definitions across variants: flag services present in one but absent in another
+3. Read CI configuration variables and compare against environment variables defined in compose files — flag mismatches or values present in one context but absent in another
+4. Check toolchain version declarations (e.g., `rust-toolchain.toml`, `.python-version`) against the CI job image versions — flag divergence
+
+### Accelerator tools (optional)
+
+> The commands below use `yq` for YAML parsing and target GitLab CI conventions.
+
 ```bash
 # Docker Compose variants
 ls docker-compose*.yml 2>/dev/null
@@ -227,6 +287,17 @@ grep -E 'rust|python|node' .gitlab-ci.yml 2>/dev/null | head -10
 ## Phase 6 — Release Process
 
 **Goal:** Verify versioning and release workflow.
+
+### LLM steps
+
+1. Locate VERSION files for each component or service — verify they exist and contain valid SemVer strings
+2. Read `COMPATIBILITY.yaml` if present (multi-component projects) — verify the compatibility matrix is up to date
+3. Check recent git tags and verify they follow the expected convention (`vX.Y.Z` or `component/vX.Y.Z`)
+4. Check that `CHANGELOG.md` exists or that the project has a documented equivalent (e.g., squash merge messages as changelog)
+5. Read the CI release pipeline and verify that version values come from the VERSION file or git tag, not hardcoded strings
+6. Verify that the quality gate runs as a prerequisite before the release tag pipeline proceeds
+
+### Accelerator tools (optional)
 
 ```bash
 # VERSION files
@@ -264,7 +335,7 @@ find . -name '*version*' -path '*/scripts/*' 2>/dev/null
 
 ## Output
 
-Reports are written to `output/YYYY-MM-DD/DP<N>-deployment-tomographe.md`.
+Reports are written to `output/YYYY-MM-DD_{project_name}/DP{n}-deployment-tomographe.md` (see `qualitoscope/config.yaml` for `project_name`).
 
 ---
 

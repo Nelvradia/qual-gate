@@ -20,7 +20,7 @@
 
 | Phase | Name | What It Does | Tools |
 |-------|------|-------------|-------|
-| **1** | License Audit | Check all dependency licenses for compatibility | `cargo license`, npm analysis |
+| **1** | License Audit | Fast licence gate on direct dependencies; delegates transitive analysis to dependency-tomographe | Manifest reading, attribution file check |
 | **2** | Configuration Management | Verify config externalization, .env handling, validation | Config file review |
 | **3** | Access Control Coverage (AC1) | Full AC1 checklist — tier declarations, boundary tests, manifests | permission/access control configuration, boundary tests |
 | **4** | GDPR Readiness | Data classification tiers, data subject rights, retention, DPIA readiness | Design doc + code review |
@@ -32,46 +32,48 @@
 
 ## Phase 1 — License Audit (S12)
 
-**Goal:** Verify all dependency licenses are compatible with the project.
+**Goal:** Perform a rapid licence compliance check on direct dependencies and verify the attribution file exists. For full transitive licence analysis, licence risk matrix, and royalty obligation assessment, run `dependency-tomographe` Phase 3.
+
+### LLM steps
+
+1. Read all manifest files in the project (Cargo.toml, package.json, pyproject.toml, go.mod, pom.xml, Gemfile, etc. — discover them by reading the project structure).
+2. For each direct dependency, read its declared licence field in the manifest.
+3. Flag any licence in the critical tier: AGPL-3.0, GPL-2.0, GPL-3.0, SSPL-1.0, BUSL-1.1, or any unknown/missing licence.
+4. Verify that an attribution file exists (NOTICE, NOTICE.md, or ATTRIBUTION.md) if any permissive deps are present.
+5. For a comprehensive analysis including transitive deps, licence propagation, and royalty triggers, run the dependency-tomographe.
+
+### Accelerator tools (optional)
 
 ```bash
-# Rust dependency licenses
-cargo license 2>/dev/null | tee output/YYYY-MM-DD/CL1-compliance-cargo-licenses.txt
-# Count by license type
+# Rust — cargo-license
+cargo license 2>/dev/null | tee output/YYYY-MM-DD_{project_name}/scratch/compliance/cargo-licenses.txt
 cargo license 2>/dev/null | awk '{print $NF}' | sort | uniq -c | sort -rn
-
-# Check for copyleft contamination (GPL, AGPL, LGPL — may have restrictions)
 cargo license 2>/dev/null | grep -i 'GPL\|AGPL\|LGPL\|copyleft'
 
-# Node dependency licenses
+# Node.js — license-checker
 cd apps/desktop && npx license-checker --summary 2>/dev/null && cd ../..
 
-# Android dependencies (Kotlin/Gradle)
-grep 'implementation\|api(' apps/android/app/build.gradle* 2>/dev/null | head -20
-# Would need manual license verification for Kotlin deps
+# Python — pip-licenses
+pip-licenses --order=license 2>/dev/null
 
-# Attribution file existence
+# Attribution file existence (all ecosystems)
 [ -f NOTICE ] || [ -f NOTICE.md ] || [ -f ATTRIBUTION.md ] && \
   echo "OK: Attribution file exists" || echo "MISSING: No NOTICE/ATTRIBUTION file"
-
-# Vendored dependency licenses
-ls vendor/rust/*/LICENSE* 2>/dev/null | wc -l
 ```
 
 ### License Checklist (S12)
 
-- [ ] All Rust dependencies have permissive licenses (MIT, Apache-2.0, BSD)
-- [ ] No GPL contamination in binary-linked dependencies
-- [ ] Node dependencies have permissive licenses
+- [ ] All direct dependencies have permissive licenses (MIT, Apache-2.0, BSD, ISC, or equivalent)
+- [ ] No GPL/AGPL/SSPL/BUSL contamination in binary-linked dependencies
 - [ ] NOTICE/ATTRIBUTION file exists listing all third-party licenses
 - [ ] Vendored dependencies include their LICENSE files
-- [ ] License field set in Cargo.toml for the project itself
+- [ ] Licence field set in the project's own manifest
 
 ### Severity Rules
 
 | Finding | Severity |
 |---------|----------|
-| GPL dependency linked into binary | **Major** |
+| GPL/AGPL dependency linked into binary | **Major** |
 | LGPL dependency (may need dynamic linking) | **Minor** |
 | Missing attribution file | **Minor** |
 | Unknown license on dependency | **Minor** |
@@ -83,8 +85,17 @@ ls vendor/rust/*/LICENSE* 2>/dev/null | wc -l
 
 **Goal:** Verify configuration is externalized, validated, and properly managed.
 
+### LLM steps
+
+1. Read all configuration files in the project (YAML, TOML, JSON, .env.example, docker-compose.yml, etc.).
+2. Check for hardcoded addresses, ports, or credentials in source code files.
+3. Verify .gitignore covers sensitive file patterns.
+4. Check for a .env.example with placeholder (not real) values.
+
+### Accelerator tools (optional)
+
 ```bash
-# Config externalization (code should not contain hardcoded config values)
+# Hardcoded addresses in source — adjust extensions to match the project language
 grep -rn 'localhost\|127\.0\.0\.1\|:8080\|:3000' src/ --include='*.rs' | \
   grep -v 'test\|#\[test\]\|///\|//' | head -10
 # Hardcoded addresses outside tests = finding
@@ -94,15 +105,13 @@ find config/ -type f 2>/dev/null | sort
 
 # Environment-specific configs
 ls docker-compose*.yml 2>/dev/null
-# Should have: base + CI overlay minimum
 
 # .env handling
 [ -f .env.example ] && echo "OK: .env.example exists" || echo "MISSING: .env.example"
 git ls-files | grep -q '\.env$' && echo "BAD: .env tracked in git" || echo "OK: .env not in git"
 
-# Config validation at startup
+# Config validation at startup — adjust pattern to match the project language
 grep -rn 'validate.*config\|config.*valid\|parse.*config\|Config::load' src/ --include='*.rs' | head -10
-# Should fail fast on invalid config
 
 # Sensitive config values
 grep -rn 'password\|secret\|token\|key' config/ --include='*.yaml' --include='*.toml' 2>/dev/null | \
@@ -125,16 +134,26 @@ grep -rn 'password\|secret\|token\|key' config/ --include='*.yaml' --include='*.
 
 **Goal:** Full AC1 checklist execution — verifies the project's permission system covers all component actions.
 
+### LLM steps
+
+1. Read the access control configuration file specified in config (`scope.access_control_config`).
+2. Count domains and actions.
+3. Read boundary test files (`scope.boundary_tests`) and verify counts match the configuration.
+4. The rest is checklist-driven — apply the AC1 checklist below.
+
+### Accelerator tools (optional)
+
 ```bash
 # AC1-1: Every component action has a tier declaration
-TOTAL_ACTIONS=$(yq '.domains[].actions | length' config/services/access-control.yaml 2>/dev/null | paste -sd+ | bc 2>/dev/null)
+ACCESS_CONTROL_CONFIG="${ACCESS_CONTROL_CONFIG:-config/access-control.yaml}"
+TOTAL_ACTIONS=$(yq '.domains[].actions | length' "$ACCESS_CONTROL_CONFIG" 2>/dev/null | paste -sd+ | bc 2>/dev/null)
 echo "Total access control actions: ${TOTAL_ACTIONS:-unknown}"
 
 # List all domains
-yq '.domains[].name' config/services/access-control.yaml 2>/dev/null | sort
+yq '.domains[].name' "$ACCESS_CONTROL_CONFIG" 2>/dev/null | sort
 
 # AC1-2: Frozen-shape boundary tests match current config
-DOMAIN_COUNT=$(yq '.domains | length' config/services/access-control.yaml 2>/dev/null)
+DOMAIN_COUNT=$(yq '.domains | length' "$ACCESS_CONTROL_CONFIG" 2>/dev/null)
 echo "Domains in config: $DOMAIN_COUNT"
 
 # Check boundary tests exist and are up to date
@@ -143,18 +162,16 @@ grep -rn 'domain_count\|action_count' <service>/tests/ --include='*.rs' 2>/dev/n
 
 # AC1-3: Blocked-tier actions (unconditional block)
 echo "=== Blocked Actions (hard blocked) ==="
-yq '.domains[].actions[] | select(.tier == "blocked" or .tier == 0)' config/services/access-control.yaml 2>/dev/null | head -20
-# Should include: financial transactions, sending communications, destructive operations
+yq '.domains[].actions[] | select(.tier == "blocked" or .tier == 0)' "$ACCESS_CONTROL_CONFIG" 2>/dev/null | head -20
 
 # AC1-4: Approval-required actions have approval flows in clients
 echo "=== Approval-Required Actions ==="
-yq '.domains[].actions[] | select(.tier == "approval" or .tier == 1)' config/services/access-control.yaml 2>/dev/null | head -20
-# Verify corresponding approval UI exists in client apps
+yq '.domains[].actions[] | select(.tier == "approval" or .tier == 1)' "$ACCESS_CONTROL_CONFIG" 2>/dev/null | head -20
 
 # AC1-5: Component-permission manifest
-[ -f config/services/component-permission-manifest.yaml ] && \
+[ -f config/component-permission-manifest.yaml ] && \
   echo "OK: Manifest exists" || echo "MISSING: component-permission-manifest.yaml"
-MANIFEST_ENTRIES=$(yq '. | length' config/services/component-permission-manifest.yaml 2>/dev/null)
+MANIFEST_ENTRIES=$(yq '. | length' config/component-permission-manifest.yaml 2>/dev/null)
 echo "Manifest entries: ${MANIFEST_ENTRIES:-unknown}"
 
 # AC1-6: Orphan actions (in code but not in access control config)
@@ -193,8 +210,17 @@ grep -rn 'fail_closed\|unreachable\|access.*unavailable\|default.*block\|None.*=
 
 **Goal:** Assess GDPR compliance posture for personal data processing.
 
+### LLM steps
+
+1. Read source files to identify where personal data is stored, processed, or transmitted.
+2. Check for data classification markers, privacy tiers, or data handling annotations in the codebase.
+3. Look for data export, deletion, and access mechanisms.
+4. Apply the GDPR checklist below.
+
+### Accelerator tools (optional)
+
 ```bash
-# Data classification tier implementation (from schema documentation)
+# Data classification tier implementation
 grep -rn 'privacy\|data_class\|classification' src/ config/ --include='*.rs' --include='*.yaml' | head -20
 
 # Data subject rights implementation
@@ -205,11 +231,11 @@ grep -rn 'delete.*user\|erase\|purge\|gdpr.*delete' src/ --include='*.rs' | head
 echo "=== Right to Portability ==="
 grep -rn 'export.*json\|export.*csv\|portable' src/ --include='*.rs' | head -5
 
+# Python / TypeScript equivalents
+grep -rn 'privacy\|data_class\|classification' src/ --include='*.py' --include='*.tsx' | head -20
+
 # Consent mechanism
 grep -rn 'consent\|opt_in\|opt_out\|accept\|agree' src/ apps/ --include='*.rs' --include='*.kt' --include='*.tsx' | head -10
-
-# Data processing records
-grep -rn 'processing\|purpose\|legal_basis' src/ config/ --include='*.rs' --include='*.yaml' | head -5
 ```
 
 ### GDPR Checklist
@@ -230,6 +256,15 @@ grep -rn 'processing\|purpose\|legal_basis' src/ config/ --include='*.rs' --incl
 
 **Goal:** Assess preparedness for EU AI Act compliance.
 
+### LLM steps
+
+1. Read business documentation and architecture docs specified in config (`scope.business_docs`).
+2. Assess risk classification documentation.
+3. Check for logging of AI decisions (required by Article 12).
+4. Apply the AI Act readiness assessment table below.
+
+### Accelerator tools (optional)
+
 ```bash
 # Risk classification documentation
 find docs/ -name '*comply*' -o -name '*ai-act*' -o -name '*risk*' 2>/dev/null
@@ -243,8 +278,7 @@ grep -rn 'transparency\|disclosure\|inform.*user\|ai.*system' src/ config/ --inc
 # Logging for AI Act Article 12 compliance
 grep -rn 'log.*decision\|log.*action\|trace.*llm\|audit.*inference' src/ --include='*.rs' | head -10
 
-# Human oversight mechanism (access control tiers = human oversight for AI actions)
-echo "Access control tier system serves as human oversight mechanism"
+# Human oversight mechanism
 grep -rn 'human.*oversight\|approval\|confirm' src/ --include='*.rs' | head -5
 ```
 
@@ -268,18 +302,36 @@ grep -rn 'human.*oversight\|approval\|confirm' src/ --include='*.rs' | head -5
 
 **Goal:** Document cryptographic usage for EU export compliance.
 
+### LLM steps
+
+1. Read all source files across the project (`scope.source_dirs`) and identify cryptographic algorithm usage — look for references to: AES, ChaCha20, RSA, ECDSA, Ed25519, X25519, SHA, HMAC, TLS, SSL.
+2. Look for cryptographic library imports and dependencies in all manifest files — the library names vary by language but the algorithm names are standardised.
+3. For each algorithm found: note its use case (encryption at rest, key exchange, signing, hashing) and key size where determinable.
+4. Build the export control documentation table from findings.
+
+### Accelerator tools (optional)
+
 ```bash
-# Cryptographic algorithms used
+# Rust — algorithm references in source
 grep -rn 'aes\|AES\|chacha\|ChaCha\|x25519\|X25519\|ed25519\|sha256\|SHA\|hmac\|HMAC' \
-  src/ apps/ --include='*.rs' --include='*.kt' --include='*.ts' 2>/dev/null | \
-  grep -v 'test\|///\|//' | head -20
+  src/ --include='*.rs' 2>/dev/null | grep -v 'test\|///\|//' | head -20
 
-# Crypto library dependencies
-grep -rn 'aes\|chacha20\|x25519\|ring\|rustls\|openssl\|bouncycastle\|webcrypto' \
-  Cargo.toml apps/*/build.gradle* apps/*/package.json 2>/dev/null
+# Python — algorithm references in source
+grep -rn 'AES\|ChaCha\|RSA\|ECDSA\|Ed25519\|SHA\|HMAC\|TLS\|SSL' \
+  src/ --include='*.py' 2>/dev/null | grep -v 'test\|#' | head -20
 
-# Key sizes
-grep -rn '256\|128\|384\|512' src/ --include='*.rs' | grep -i 'key\|cipher\|bit' | head -10
+# TypeScript/JavaScript — algorithm references in source
+grep -rn 'AES\|ChaCha\|RSA\|ECDSA\|SHA\|HMAC\|createCipher\|subtle\.encrypt' \
+  src/ apps/ --include='*.ts' --include='*.tsx' --include='*.js' 2>/dev/null | head -20
+
+# Rust — crypto library dependencies in manifests
+grep -rn 'aes\|chacha20\|x25519\|ring\|rustls\|openssl' Cargo.toml 2>/dev/null
+
+# Node.js — crypto library dependencies
+grep -rn 'node-forge\|crypto-js\|noble\|tweetnacl\|libsodium' apps/*/package.json 2>/dev/null
+
+# Python — crypto library dependencies
+grep -rn 'cryptography\|pycryptodome\|pyOpenSSL\|nacl\|paramiko' pyproject.toml requirements*.txt 2>/dev/null
 ```
 
 ### Export Control Documentation
@@ -323,20 +375,20 @@ thresholds:
     human_oversight_mechanism: true
 
 scope:
-  access_control_config: config/services/access-control.yaml
-  component_manifest: config/services/component-permission-manifest.yaml
+  access_control_config: config/access-control.yaml       # adjust to project layout
+  component_manifest: config/component-permission-manifest.yaml
   boundary_tests: <service>/tests/
   compose_file: docker-compose.yml
   config_dir: config/
   business_docs: docs/
-  crypto_sources: [src/, apps/]
+  source_dirs: []                                          # directories to scan for source files (phases 1, 4, 6)
 ```
 
 ---
 
 ## Output
 
-Reports are written to `output/YYYY-MM-DD/CL<N>-compliance.md` (e.g., `output/2026-03-17/CL1-compliance.md`).
+Reports are written to `output/YYYY-MM-DD_{project_name}/CL{n}-compliance.md` (see `qualitoscope/config.yaml` for `project_name`).
 
 ---
 

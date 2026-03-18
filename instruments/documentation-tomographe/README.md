@@ -239,7 +239,8 @@ grep -c 'register\|counter!\|histogram!\|gauge!' src/metrics.rs 2>/dev/null
 
 # K4-3: Permission/access control config domains vs code implementation
 # Extract domains from config
-yq '.domains[].name' config/access-control.yaml 2>/dev/null | sort
+ACCESS_CONTROL_CONFIG="${ACCESS_CONTROL_CONFIG:-config/access-control.yaml}"
+yq '.domains[].name' "$ACCESS_CONTROL_CONFIG" 2>/dev/null | sort
 # Extract domains from code
 grep -rn 'domain.*=.*"' src/ --include='*.rs' --include='*.py' | \
   sed 's/.*"\([^"]*\)".*/\1/' | sort -u
@@ -271,7 +272,7 @@ echo "Total docs: $total_docs, Indexed in 00-index.md: $indexed_docs"
 
 ## Output
 
-Reports are written to `output/YYYY-MM-DD/DOC<N>-documentation-tomographe.md`.
+Reports are written to `output/YYYY-MM-DD_{project_name}/DOC{n}-documentation-tomographe.md` (see `qualitoscope/config.yaml` for `project_name`).
 
 ---
 
@@ -295,7 +296,7 @@ scope:
   glossary_script: scripts/lint_glossary.py
   schema_map: docs/schema-map.md
   metrics_doc: docs/metrics-registry.md
-  access_control_config: config/access-control.yaml
+  access_control_config: config/access-control.yaml  # adjust to project layout
 ```
 
 ---

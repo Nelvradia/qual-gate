@@ -19,11 +19,11 @@
 
 | Phase | Name | What It Does | Tools |
 |-------|------|-------------|-------|
-| **1** | Module Mapping | Enumerate crates, modules, public API surfaces | `cargo metadata`, grep, file listing |
-| **2** | Dependency Analysis | Build mod graph, detect circular deps, layer violations | `cargo tree`, grep, LLM analysis |
-| **3** | Pattern Detection | Identify dominant architecture patterns per crate | LLM analysis, grep |
-| **4** | Violation Scan | Cross-layer imports, god modules, tight coupling | grep, LLM analysis |
-| **5** | Drift Assessment | Compare code structure vs documented architecture | diff, LLM analysis |
+| **1** | Module Mapping | Enumerate modules, packages, crates, and public API surfaces | manifest tools, file listing, LLM analysis |
+| **2** | Dependency Analysis | Build mod graph, detect circular deps, layer violations | dependency tools, LLM analysis |
+| **3** | Pattern Detection | Identify dominant architecture patterns per module | LLM analysis |
+| **4** | Violation Scan | Cross-layer imports, god modules, tight coupling | file analysis, LLM analysis |
+| **5** | Drift Assessment | Compare code structure vs documented architecture | LLM analysis |
 | **6** | Evolution Readiness | Assess extensibility, seam availability, plugin points | LLM analysis |
 | **7** | Report | Compile findings into AR{n} report | Template filling |
 
@@ -31,33 +31,32 @@
 
 ## Phase 1 — Module Mapping
 
-**Goal:** Build a complete map of crates, modules, and their public API surfaces.
+**Goal:** Build a complete map of modules, packages, or crates and their public API surfaces.
 
-### Steps
+### LLM steps
+
+1. Read the project root and all subdirectories. Identify the top-level modules, packages, crates, or namespaces by reading the relevant manifest and source files. In Rust these are crates (`Cargo.toml`); in Python, top-level packages (`__init__.py`); in Go, packages (`go.mod` + directory structure); in Java/Kotlin, packages (`pom.xml` or `build.gradle`); in Node, the `package.json` name and `exports` field.
+2. For each module/package, count public API surface: exported functions, classes, types, and constants.
+3. Identify which modules act as re-export hubs (modules that import many others and re-export them) — these are dependency hubs regardless of language.
+4. Build a module inventory table.
+
+### Accelerator tools (optional)
 
 ```bash
-# List all workspace crates
+# Rust — list workspace crates and public items
 cargo metadata --format-version 1 2>/dev/null | jq -r '.workspace_members[]' | sort
+cargo tree --workspace --depth 1 2>/dev/null
 
-# Enumerate modules per crate
-for crate_dir in <service_dirs>; do
-  echo "=== $crate_dir ==="
-  find src/$crate_dir -name '*.rs' | sort
-done
+# Go — list all packages
+go list ./...
 
-# Count public items per module
-grep -rn 'pub fn \|pub struct \|pub enum \|pub trait \|pub type \|pub const ' \
-  src/ --include='*.rs' | \
-  sed 's|/[^/]*$||' | sort | uniq -c | sort -rn | head -20
-
-# Identify module re-export hubs
-grep -rn 'pub mod \|pub use ' src/lib.rs src/main.rs \
-  --include='*.rs' 2>/dev/null
+# Python — list top-level packages
+python -c "import pkgutil; [print(m.name) for m in pkgutil.iter_modules()]"
 ```
 
 ### Deliverables
 
-- Module inventory table (crate, module, file count, pub item count)
+- Module inventory table (module/package/crate, file count, pub item count)
 - Dependency hub identification (modules with highest fan-in/fan-out)
 
 ---
@@ -66,65 +65,61 @@ grep -rn 'pub mod \|pub use ' src/lib.rs src/main.rs \
 
 **Goal:** Detect circular dependencies, layer violations, and unhealthy coupling.
 
-### Steps
+### LLM steps
+
+1. For each module identified in Phase 1, read its import/use statements.
+2. Build a directed dependency graph: which module imports which.
+3. Check for circular dependencies: module A imports B imports A.
+4. Check for layer violations using the `layers` configuration in config.yaml — the layer rules describe logical layers; apply them to whatever modules are found.
+5. Check that independent components (as declared in config.yaml `layers.*.independent_of`) do not import each other.
+
+Note: this phase analyses _module-level_ import direction, not package-level dependencies. Package-level dependency analysis is handled by the dependency-tomographe.
+
+### Accelerator tools (optional)
 
 ```bash
-# Crate-level dependency graph
-cargo tree --workspace --depth 1 2>/dev/null
-
-# Check for circular dependencies between workspace crates
+# Rust — workspace dependency graph and circular dep detection
+cargo tree --workspace 2>/dev/null
 cargo tree --workspace 2>/dev/null | grep -E '^\w+-\w+ .* \(\*\)' | head -10
 
-# Module-level: find cross-layer imports
-# Layers: api → service → db (allowed direction)
-# Violations: db → service, db → api, service → api
-grep -rn 'use crate::api' src/service/ src/db/ --include='*.rs'
-grep -rn 'use crate::service' src/db/ --include='*.rs'
+# Node/TypeScript — circular dependency detection
+madge --circular src/
 
-# Check service independence (services should not import other services' internals)
-grep -rn 'use <crate_name>::\|use crate::<other_service>' <service>/src/ --include='*.rs' 2>/dev/null
+# Go — module dependency graph
+go mod graph
 ```
 
 ### Severity Rules
 
 | Finding | Severity |
 |---------|----------|
-| Circular dependency between crates | **Critical** |
-| db → service or db → api import | **Major** |
-| service → api import | **Major** |
-| Service importing another service's internals | **Critical** |
+| Circular dependency between modules | **Critical** |
+| Lower layer importing from a higher layer | **Major** |
+| Component importing another component's internals | **Critical** |
 | >10 direct dependencies on a single module | **Minor** |
 
 ---
 
 ## Phase 3 — Pattern Detection
 
-**Goal:** Identify the dominant architectural patterns in each crate and verify consistency.
+**Goal:** Identify the dominant architectural patterns in each module and verify consistency.
 
-### Expected Patterns
+### LLM steps
 
-| Crate | Expected Pattern | Key Indicators |
-|-------|-----------------|----------------|
-| `<primary_service>` | Service layer (api → service → db) | Thin API handlers, service trait, db module separation |
-| `<access_control>` | Policy engine | Tier-based dispatch, config-driven rules, fail-closed |
-| `<health_monitor>` | Health monitor | Periodic checks, alerting, independent restart logic |
-| `common` | Shared library | Types, error definitions, no business logic |
+1. Read the module structure from Phase 1.
+2. For each top-level module, identify the dominant architectural pattern based on its structure: layered (api → service → db), hexagonal (ports + adapters), pipeline, event-driven, monolith, etc.
+3. Check whether the pattern is consistent across the codebase or whether modules use conflicting patterns.
+4. Verify that the observed patterns match the `Expected Patterns` section in the configuration (if defined).
 
-### Steps
-
-1. For each crate, enumerate the top-level module structure
-2. Verify the expected layering (api → service → db) in the primary service
-3. Check that components implement a consistent trait/interface
-4. Verify access control config drives behavior (not hardcoded)
-5. Confirm the health monitor has no business logic dependencies
+Expected patterns are defined in config.yaml per module.
 
 ### Severity Rules
 
 | Finding | Severity |
 |---------|----------|
-| Crate deviates from expected pattern | **Major** |
-| Mixed patterns within a single crate | **Minor** |
-| Business logic in common crate | **Major** |
+| Module deviates from expected pattern | **Major** |
+| Mixed patterns within a single module | **Minor** |
+| Business logic in shared/common module | **Major** |
 | Hardcoded behavior in access control (not config-driven) | **Major** |
 
 ---
@@ -133,32 +128,28 @@ grep -rn 'use <crate_name>::\|use crate::<other_service>' <service>/src/ --inclu
 
 **Goal:** Find specific architectural violations.
 
-### Steps
+### LLM steps
+
+1. Read all source files. For each, note its module/layer assignment.
+2. Check for god modules: files that are very long (check against `god_module_lines` threshold) AND imported by many other modules (check against `god_module_dependents` threshold).
+3. Check for cross-layer type leakage: framework/transport types appearing in persistence layers, or persistence types appearing in API layers. The specific types differ by language and framework but the principle is universal.
+4. Check for component isolation: if two components are declared independent, verify neither imports the other's internal modules.
+5. Check for raw data access in the wrong layer (e.g. SQL strings or ORM calls outside the designated persistence module).
+
+### Accelerator tools (optional)
 
 ```bash
-# God modules (files >500 lines with high fan-in)
+# All ecosystems — find large files (adjust extension as needed)
 find src/ -name '*.rs' -exec wc -l {} \; 2>/dev/null | sort -rn | head -20
+find src/ -name '*.py' -exec wc -l {} \; 2>/dev/null | sort -rn | head -20
+find src/ -name '*.go' -exec wc -l {} \; 2>/dev/null | sort -rn | head -20
 
-# Cross-cutting concerns leaking (e.g., HTTP types in db layer)
+# Rust — transport types leaking into persistence layer
 grep -rn 'axum\|hyper\|StatusCode\|Json<' src/db/ --include='*.rs' 2>/dev/null
 grep -rn 'rusqlite\|SqlitePool\|Connection' src/api/ --include='*.rs' 2>/dev/null
 
-# Component isolation: components should not import other components directly
-for component in src/component/*.rs; do
-  name=$(basename "$component" .rs)
-  [ "$name" = "mod" ] && continue
-  others=$(grep -l "use crate::component::$name" src/component/*.rs 2>/dev/null | grep -v "$component" | grep -v "mod.rs")
-  if [ -n "$others" ]; then
-    echo "VIOLATION: $name imported by: $others"
-  fi
-done
-
-# Direct SQL in component files (should use db/ layer)
+# Rust — raw SQL outside db layer
 grep -rn 'SELECT\|INSERT\|UPDATE\|DELETE\|CREATE TABLE' src/component/ --include='*.rs' 2>/dev/null
-
-# Access control bypass attempts
-grep -rn 'enforce\|tier\|permission' src/ --include='*.rs' | \
-  grep -v 'access_client\|check_permission\|//\|test' | head -10
 ```
 
 ### Severity Rules
@@ -166,10 +157,10 @@ grep -rn 'enforce\|tier\|permission' src/ --include='*.rs' | \
 | Finding | Severity |
 |---------|----------|
 | God module >800 lines with >5 dependents | **Major** |
-| HTTP types in db layer | **Major** |
-| SQL types in API layer | **Major** |
+| Transport/framework types in persistence layer | **Major** |
+| Persistence types in API layer | **Major** |
 | Component importing another component directly | **Minor** |
-| Raw SQL in component files (not db/ layer) | **Major** |
+| Raw data access outside the designated persistence module | **Major** |
 | Access control bypass | **Critical** |
 
 ---
@@ -178,22 +169,15 @@ grep -rn 'enforce\|tier\|permission' src/ --include='*.rs' | \
 
 **Goal:** Compare actual code structure against documented architecture.
 
-### Steps
+### LLM steps
 
-1. Read documented architecture from:
-   - `CLAUDE.md` (Architecture section)
-   - `docs/architecture.md` (if exists)
-   - `.claude/decisions/` (ADRs)
-2. Compare crate boundaries in code vs docs
-3. Verify database separation matches schema documentation
-4. Check access control assignments match permission/access control configuration
-5. Verify component/module domain registration matches documented component list
+Read the files listed in `doc_sources` in config.yaml (CLAUDE.md, ADRs, architecture docs) and compare what is described there against what is found in the code. Identify any discrepancy between documented and actual module boundaries, component ownership, and service separation.
 
 ### Drift Indicators
 
 | Indicator | Severity |
 |-----------|----------|
-| Crate exists in code but not in docs | **Minor** |
+| Module exists in code but not in docs | **Minor** |
 | Documented component missing from code | **Minor** |
 | Access control config disagrees with docs | **Major** |
 | Database used that's not in the documented data model | **Critical** |
@@ -207,10 +191,10 @@ grep -rn 'enforce\|tier\|permission' src/ --include='*.rs' | \
 
 ### Assessment Criteria
 
-- [ ] New component can be added by creating a small set of files (component, db, api) + registering in mod.rs
-- [ ] New access control domain can be added via config only (no code changes to the access control service)
-- [ ] New database table can be added via migration without affecting existing tables
-- [ ] Shared types in `common` crate are stable (low churn)
+- [ ] A new module can be added by creating files in the appropriate directory and registering it in the module manifest (`mod.rs`, `__init__.py`, `index.ts`, etc.)
+- [ ] New configuration-driven behaviour can be added via config only (no hardcoded changes)
+- [ ] New persistence schema can be added via migration without affecting existing schema
+- [ ] Shared types in the common/core module are stable (low churn)
 - [ ] API versioning strategy exists or is unnecessary at current stage
 - [ ] Plugin/extension points are documented
 
@@ -226,14 +210,14 @@ grep -rn 'enforce\|tier\|permission' src/ --include='*.rs' | \
 
 ## Phase 7 — Report
 
-Compile all findings into `output/YYYY-MM-DD/AR{n}-architecture.md` using the report template.
+Compile all findings into `output/YYYY-MM-DD_{project_name}/AR{n}-architecture.md` (see `qualitoscope/config.yaml` for `project_name`) using the report template.
 
 ### Report Contents
 
 1. **Summary table** — key metrics at a glance
-2. **Module map** — crate/module inventory
+2. **Module map** — module/package inventory
 3. **Dependency graph** — critical paths and violations
-4. **Pattern conformance** — per-crate assessment
+4. **Pattern conformance** — per-module assessment
 5. **Violation register** — all findings with severity
 6. **Drift log** — code-vs-docs discrepancies
 7. **Evolution score** — readiness assessment

@@ -13,7 +13,7 @@ verdict: {verdict}
 | Metric | Value | Status |
 |--------|-------|--------|
 | Copyleft deps | | |
-| Enforcer coverage | | |
+| Access control coverage | | |
 | Boundary tests | | |
 | GDPR readiness | | |
 | AI Act readiness | | |

@@ -13,9 +13,14 @@ thresholds:
   lifecycle:
     retention_policy_exists: true
 scope:
-  db_dir: daemon/src/db/
+  db_dir: src/db/                  # adjust to project layout
   schema_doc: docs/schema-map.md
   config_dir: config/
   backup_scripts: infra/scripts/
   dr_runbook: docs/operations/disaster-recovery-runbook.md
-  qdrant_url: "http://localhost:6333"
+  vector_store_url: "http://localhost:6333"  # vector database endpoint
+
+delta:
+  # output goes to output/YYYY-MM-DD_{project_name}/ at repo root — set project_name in qualitoscope/config.yaml
+  output_root: output/
+  keep_runs: 10

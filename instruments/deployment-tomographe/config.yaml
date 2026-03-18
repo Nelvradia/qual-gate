@@ -2,20 +2,24 @@ thresholds:
   pipeline:
     min_stages: 4
     max_allow_failure_critical: 0
-    required_blocking: [cargo_fmt, cargo_clippy, cargo_test]
+    required_blocking: [format_check, lint, test]  # use job names as they appear in your CI config
   reproducibility:
     lockfiles_committed: true
     docker_images_pinned: true
     toolchain_pinned: true
   artifacts:
-    apk_built: true
-    deb_built: true
+    primary_artifacts_built: true  # covers binaries, packages, images, or any deliverable artifact type
     docker_pushed: true
   release:
     version_files_exist: true
     changelog_exists: true
 scope:
-  ci_config: .gitlab-ci.yml
+  ci_config: .gitlab-ci.yml          # default; update for GitHub Actions, Jenkins, CircleCI, etc.
   compose_files: [docker-compose.yml, docker-compose.ci.yml]
-  version_files: [daemon/VERSION, enforcer/VERSION, watchdog/VERSION]
+  version_files: []                  # list component VERSION files, e.g. [service/VERSION, auth/VERSION]
   operations_docs: docs/operations/
+
+delta:
+  # output goes to output/YYYY-MM-DD_{project_name}/ at repo root — set project_name in qualitoscope/config.yaml
+  output_root: output/
+  keep_runs: 10
