@@ -1,0 +1,1 @@
+# Scan outputs — not committed\n*.json\n*.txt\n*/\n!.gitignore
