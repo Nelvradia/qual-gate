@@ -1,7 +1,8 @@
 # qualitoscope/config.yaml
 # project_name: the target project being scanned. Combined with the run date to form
 # the output folder: output/YYYY-MM-DD_project-name/ at the qual-gate repo root.
-# Set this before running any instrument or the qualitoscope.
+# Primary source: target project's project-profile.yaml → name field.
+# This field is a fallback for backward compatibility when no profile exists.
 project_name: ""          # e.g. "my-project" → output goes to output/2026-03-18_my-project/
 
 base_dir: instruments

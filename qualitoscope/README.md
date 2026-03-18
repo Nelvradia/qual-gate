@@ -30,7 +30,7 @@
 
 | Phase | Name | What It Does | Key Inputs |
 |-------|------|-------------|------------|
-| **1** | Instrument Inventory | Verify all instruments are present, configured, and runnable | Directory listing, config.yaml validation |
+| **1** | Profile Validation & Instrument Inventory | Validate project profile; verify all instruments are present, configured, and runnable | project-profile.yaml, directory listing, config.yaml validation |
 | **2** | Delegation | Invoke each instrument (or validate freshness of cached output) | Instrument READMEs, cached output JSON |
 | **3** | Overlap Resolution | Deduplicate findings from instruments with shared concerns | Ownership table, instrument outputs |
 | **4** | Cross-Correlation | Detect findings that span multiple instruments | All instrument outputs, correlation rules |
@@ -41,9 +41,9 @@
 
 ---
 
-## Phase 1 — Instrument Inventory
+## Phase 1 — Profile Validation & Instrument Inventory
 
-**Goal:** Verify all 13 instruments are present, correctly structured, and have valid configuration.
+**Goal:** Validate the target project's profile, then verify all 13 instruments are present, correctly structured, and have valid configuration.
 
 ### Instrument Registry
 
@@ -117,6 +117,13 @@ done
 ```json
 {
   "timestamp": "ISO-8601",
+  "profile_validation": {
+    "profile_found": true,
+    "required_fields_valid": true,
+    "optional_field_errors": 0,
+    "paths_missing_on_disk": 2,
+    "defaults_applied": ["docs_dir", "test_dirs", "ci_config"]
+  },
   "instruments_expected": 13,
   "instruments_found": 13,
   "instruments_valid": 13,
@@ -127,7 +134,7 @@ done
       "present": true,
       "has_readme": true,
       "has_config": true,
-      "has_output_dir": true,  // refers to output/ at repo root
+      "has_output_dir": true,
       "config_valid": true,
       "last_run": "ISO-8601 or null"
     }
