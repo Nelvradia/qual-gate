@@ -44,12 +44,8 @@ scoring:
     green: 0.90
     yellow: 0.70
     red: 0.50
-scope:
-  # Directories containing source code — LLM reads these to build the module list
-  source_dirs: []          # e.g. [src/, lib/, pkg/]
-  # Directories containing test files — LLM reads these to build the test inventory
-  test_dirs: []            # e.g. [tests/, spec/, __tests__/]
-  exclude: [vendor/, target/, node_modules/]
+# Paths: read from project-profile.yaml in the target project root.
+# Fields used: source_dirs, test_dirs, exclude.
 
 delta:
   # output goes to output/YYYY-MM-DD_{project_name}/ at repo root — set project_name in qualitoscope/config.yaml

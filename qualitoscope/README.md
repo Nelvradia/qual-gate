@@ -1,10 +1,10 @@
 # qualitoscope/
 
-**Pure orchestrator for all qual-gate quality instruments.** Delegates to 12 domain tomographes (under `instruments/`), resolves finding overlaps, cross-correlates across instruments, computes S14 (Overall Summary), produces unified DR reports, and tracks project health trends. Does not perform domain scanning itself — every finding originates from a delegated instrument.
+**Pure orchestrator for all qual-gate quality instruments.** Delegates to 13 domain tomographes (under `instruments/`), resolves finding overlaps, cross-correlates across instruments, computes S14 (Overall Summary), produces unified DR reports, and tracks project health trends. Does not perform domain scanning itself — every finding originates from a delegated instrument.
 
 **Covers DR Section:** S14 (Overall Summary — aggregated from all instruments)
 
-**Delegates to:** All 12 domain instruments covering S1–S13, K1–K4
+**Delegates to:** All 13 domain instruments covering S1–S13, K1–K4
 
 ---
 
@@ -30,7 +30,8 @@
 
 | Phase | Name | What It Does | Key Inputs |
 |-------|------|-------------|------------|
-| **1** | Instrument Inventory | Verify all instruments are present, configured, and runnable | Directory listing, config.yaml validation |
+| **0** | Auto-Discovery | Detect project stack and generate draft profile (runs only if no profile exists) | Project root file listing, build manifests |
+| **1** | Profile Validation & Instrument Inventory | Validate project profile; verify all instruments are present, configured, and runnable | project-profile.yaml, directory listing, config.yaml validation |
 | **2** | Delegation | Invoke each instrument (or validate freshness of cached output) | Instrument READMEs, cached output JSON |
 | **3** | Overlap Resolution | Deduplicate findings from instruments with shared concerns | Ownership table, instrument outputs |
 | **4** | Cross-Correlation | Detect findings that span multiple instruments | All instrument outputs, correlation rules |
@@ -41,9 +42,41 @@
 
 ---
 
-## Phase 1 — Instrument Inventory
+## Phase 0 — Auto-Discovery
 
-**Goal:** Verify all 12 instruments are present, correctly structured, and have valid configuration.
+**Goal:** Detect the target project's technology stack and layout, generate a draft `project-profile.yaml` for user review. Runs only when no profile exists in the target project root.
+
+**Trigger:** `project-profile.yaml` does not exist in the target project root.
+
+**Detection steps** (see `methods/00-auto-discovery.md` for full heuristics):
+1. **Language Detection** — file extensions, build manifests, shebang lines
+2. **Build System Detection** — Cargo.toml, pyproject.toml, package.json, go.mod, CMakeLists.txt
+3. **CI Platform Detection** — .gitlab-ci.yml, .github/workflows/, azure-pipelines.yml, etc.
+4. **Directory Layout** — source dirs, test dirs, docs dir, config dir
+5. **Platform Detection** — Android, iOS, Desktop (Tauri/Electron), containerised
+6. **Convention Detection** — access control config, version files, ADR directories
+7. **Toggle Inference** — permission_system, ai_ml_components, gdpr_scope, ai_act_scope
+
+**Exit behaviour:** Write draft `project-profile.yaml` with confidence tags (`[strict]`, `[heuristic]`, `[guessed]`) and `# VERIFY:` comments. **Halt execution** — user must review and edit the draft before re-running.
+
+**Output:** Draft `project-profile.yaml` in target project root (no output directory files).
+
+### Severity Rules
+
+| Finding | Severity |
+|---------|----------|
+| No profile and Phase 0 generated one | **Observation** |
+| Could not detect any languages | **Critical** (halt) |
+| Detected languages but no build system | **Minor** |
+| Detected conflicting signals | **Observation** |
+
+---
+
+## Phase 1 — Profile Validation & Instrument Inventory
+
+**Goal:** Validate the target project's profile, then verify all 13 instruments are present, correctly structured, and have valid configuration.
+
+Phase 1 assumes a validated `project-profile.yaml` exists. If Phase 0 ran and halted, Phase 1 will not execute until the user reviews the draft profile and re-runs.
 
 ### Instrument Registry
 
@@ -61,6 +94,7 @@
 | I10 | `performance-tomographe` | S10 (Performance) | `instruments/performance-tomographe/` | qual-gate |
 | I11 | `ux-tomographe` | S11 (UX) | `instruments/ux-tomographe/` | qual-gate |
 | I12 | `ai-ml-tomographe` | AI/ML Quality (new dimension) | `instruments/ai-ml-tomographe/` | qual-gate |
+| I13 | `dependency-tomographe` | S12, S5 (Licensing, Supply Chain) | `instruments/dependency-tomographe/` | qual-gate |
 
 ### Steps
 
@@ -69,7 +103,7 @@
 for inst in architecture-tomographe test-tomographe code-tomographe documentation-tomographe \
   compliance-tomographe data-tomographe deployment-tomographe \
   observability-tomographe security-tomographe performance-tomographe \
-  ux-tomographe ai-ml-tomographe; do
+  ux-tomographe ai-ml-tomographe dependency-tomographe; do
   if [ -d "instruments/$inst" ]; then
     echo "OK: instruments/$inst"
   else
@@ -80,7 +114,8 @@ done
 # Verify each instrument has required structure
 for inst in code-tomographe documentation-tomographe compliance-tomographe \
   data-tomographe deployment-tomographe observability-tomographe \
-  security-tomographe performance-tomographe ux-tomographe ai-ml-tomographe; do
+  security-tomographe performance-tomographe ux-tomographe ai-ml-tomographe \
+  dependency-tomographe; do
   echo "--- instruments/$inst ---"
   [ -f "instruments/$inst/README.md" ]      && echo "  README.md: OK"      || echo "  README.md: MISSING"
   [ -f "instruments/$inst/config.yaml" ]    && echo "  config.yaml: OK"    || echo "  config.yaml: MISSING"
@@ -92,7 +127,8 @@ done
 # Validate config.yaml files parse correctly
 for inst in code-tomographe compliance-tomographe data-tomographe \
   deployment-tomographe documentation-tomographe observability-tomographe \
-  security-tomographe performance-tomographe ux-tomographe ai-ml-tomographe; do
+  security-tomographe performance-tomographe ux-tomographe ai-ml-tomographe \
+  dependency-tomographe; do
   yq '.' "instruments/$inst/config.yaml" > /dev/null 2>&1 \
     && echo "OK: instruments/$inst/config.yaml" \
     || echo "INVALID YAML: instruments/$inst/config.yaml"
@@ -114,9 +150,16 @@ done
 ```json
 {
   "timestamp": "ISO-8601",
-  "instruments_expected": 12,
-  "instruments_found": 12,
-  "instruments_valid": 12,
+  "profile_validation": {
+    "profile_found": true,
+    "required_fields_valid": true,
+    "optional_field_errors": 0,
+    "paths_missing_on_disk": 2,
+    "defaults_applied": ["docs_dir", "test_dirs", "ci_config"]
+  },
+  "instruments_expected": 13,
+  "instruments_found": 13,
+  "instruments_valid": 13,
   "details": [
     {
       "id": "I01",
@@ -124,7 +167,7 @@ done
       "present": true,
       "has_readme": true,
       "has_config": true,
-      "has_output_dir": true,  // refers to output/ at repo root
+      "has_output_dir": true,
       "config_valid": true,
       "last_run": "ISO-8601 or null"
     }
@@ -154,7 +197,7 @@ done
 for inst in architecture-tomographe test-tomographe code-tomographe documentation-tomographe \
   compliance-tomographe data-tomographe deployment-tomographe \
   observability-tomographe security-tomographe performance-tomographe \
-  ux-tomographe ai-ml-tomographe; do
+  ux-tomographe ai-ml-tomographe dependency-tomographe; do
 
   latest="output/${YYYYMMDD}_${PROJECT_NAME}/${inst}-latest.json"
   if [ -f "$latest" ]; then
@@ -166,18 +209,29 @@ for inst in architecture-tomographe test-tomographe code-tomographe documentatio
 done
 ```
 
+### Profile Resolution
+
+Before checking freshness or delegating, resolve the project profile into instrument configs:
+
+1. Load the validated `project-profile.yaml` from Phase 1
+2. Resolve profile path fields into each instrument's expected config keys
+3. Resolve conditional toggles — determine which instrument phases to skip
+4. Pass resolved config to each instrument (instruments receive concrete paths, not raw profile references)
+
+See `methods/02-delegation.md` for the full profile → instrument resolution table.
+
 ### Delegation Protocol
 
 For each instrument that needs to run:
 
 1. Read the instrument's `README.md` for methodology
-2. Execute a full scan following the instrument's phase sequence
+2. Execute a full scan following the instrument's phase sequence (skipping toggled-off phases)
 3. Verify output files were produced in `output/YYYY-MM-DD_{project_name}/`
 4. Read the instrument's report from `output/YYYY-MM-DD_{project_name}/`
 5. Record the instrument's findings in the Qualitoscope's working set
 
 **Parallel execution:** Instruments are independent — up to 5 can be delegated concurrently using sub-agents. Group by estimated run time:
-- Fast (static analysis): code, documentation, compliance, deployment (~2-3 min each)
+- Fast (static analysis): code, documentation, compliance, deployment, dependency (~2-3 min each)
 - Medium (data inspection): data, observability, AI/ML (~5-10 min each)
 - Slow (live testing): security, performance, UX, test (~10-20 min each)
 
@@ -195,8 +249,9 @@ For each instrument that needs to run:
 {
   "timestamp": "ISO-8601",
   "mode": "full|dr|targeted",
-  "instruments_invoked": 12,
-  "instruments_succeeded": 12,
+  "profile_applied": true,
+  "instruments_invoked": 13,
+  "instruments_succeeded": 13,
   "instruments_failed": 0,
   "instruments_cached": 0,
   "details": [
@@ -296,10 +351,10 @@ For each instrument that needs to run:
 | ID | Rule | Instruments | What It Catches |
 |----|------|------------|-----------------|
 | **XC-01** | High-churn file is also a permission module | test × security | Security-sensitive code with inadequate test coverage |
-| **XC-02** | New component added but no permission entry | code × compliance | Component bypasses permission system |
+| **XC-02** | New component added but no auth entry | code × compliance | Component bypasses permission system (conditional: `profile.toggles.permission_system`) |
 | **XC-03** | DB migration landed but schema documentation not updated | data × documentation | Schema map drift |
 | **XC-04** | New metric registered but no dashboard panel | observability × documentation | Observable data with no visibility |
-| **XC-05** | AI configuration changed but no prompt quality eval | AI/ML × documentation | Prompt regression risk |
+| **XC-05** | AI config changed but no prompt quality eval | AI/ML × documentation | Prompt regression risk (conditional: `profile.toggles.ai_ml_components`) |
 | **XC-06** | CI job added but not merge-blocking | deployment × test | Test exists but doesn't gate anything |
 | **XC-07** | UX component added but no accessibility test | UX × test | Accessibility gap for new UI |
 | **XC-08** | Dependency updated but security scan stale | code × security | Supply chain vulnerability window |
@@ -316,11 +371,12 @@ XC-01: High-churn + permission module
   4. For each intersection: check test coverage from test instrument
   5. Flag if coverage < 80% for a high-churn permission file
 
-XC-02: New component without permission entry
-  1. From code instrument: get list of all registered components (component domain registrations)
-  2. From compliance instrument: get list of all permission configuration domain entries
-  3. Diff: components present in code but absent from permission configuration
-  4. Flag each missing entry as Critical (bypasses permission system)
+XC-02: New component without auth entry (conditional: profile.toggles.permission_system)
+  1. If profile.toggles.permission_system is false → log OK: "Rule skipped — toggle disabled", skip
+  2. From code instrument: get list of all registered components (component domain registrations)
+  3. From compliance instrument: get list of all permission/auth configuration domain entries
+  4. Diff: components present in code but absent from auth configuration
+  5. Flag each missing entry as Critical (bypasses permission system)
 
 XC-03: Migration without schema documentation update
   1. From data instrument: get latest migration version per database
@@ -334,11 +390,12 @@ XC-04: Metric without dashboard
   3. Diff: metrics with no corresponding dashboard panel
   4. Flag as Observation (data exists but isn't visualized)
 
-XC-05: AI configuration change without eval
-  1. From documentation instrument: check AI configuration last-modified date
-  2. From AI/ML instrument: check last prompt quality evaluation date
-  3. If AI configuration modified after last eval → prompt regression risk
-  4. Flag as Minor (needs re-evaluation, not necessarily broken)
+XC-05: AI config change without eval (conditional: profile.toggles.ai_ml_components)
+  1. If profile.toggles.ai_ml_components is false → log OK: "Rule skipped — toggle disabled", skip
+  2. From documentation instrument: check AI configuration last-modified date
+  3. From AI/ML instrument: check last prompt quality evaluation date
+  4. If AI configuration modified after last eval → prompt regression risk
+  5. Flag as Minor (needs re-evaluation, not necessarily broken)
 
 XC-06: CI job not gating
   1. From deployment instrument: get list of all CI jobs
@@ -363,11 +420,11 @@ XC-08: Dep update without security scan
 
 | Finding | Severity |
 |---------|----------|
-| Component bypasses permission system (XC-02) | **Critical** |
+| Component without auth entry (XC-02) | **Critical** |
 | High-churn permission file with low coverage (XC-01) | **Major** |
 | Supply chain vulnerability window (XC-08) | **Major** |
 | Schema map drift (XC-03) | **Minor** |
-| Prompt regression risk (XC-05) | **Minor** |
+| AI config change without eval (XC-05) | **Minor** |
 | CI job not gating (XC-06) | **Minor** |
 | UX component without a11y test (XC-07) | **Minor** |
 | Metric without dashboard (XC-04) | **Observation** |
@@ -399,6 +456,8 @@ XC-08: Dep update without security scan
 ## Phase 5 — S14 Aggregation
 
 **Goal:** Compute the Overall Summary (DR Section S14) from all deduplicated and cross-correlated findings. This is the only DR section that no individual instrument produces — it's the Qualitoscope's unique contribution.
+
+AI-ML findings (from I12) contribute to the composite score but are not mapped to their own DR section. They feed into S5 where relevant (AI threats) and into the overall severity counts.
 
 ### Steps
 
@@ -484,6 +543,8 @@ score = 1.0
 
 **Goal:** Map instrument outputs to DR-TEMPLATE sections, producing a complete Design Review report. This phase is skipped during Quick Scan and Targeted Scan modes.
 
+**Note:** AI-ML (I12) is a supplementary quality dimension — it does not have its own DR section. Its findings feed into S5 (AI threats) and the composite score but AI-ML does not get a section sub-verdict.
+
 ### DR Section → Instrument Mapping
 
 | DR Section | Primary Instrument | Secondary | Notes |
@@ -492,14 +553,14 @@ score = 1.0
 | S2 Documentation | I04 `documentation-tomographe` | — | Doc inventory, staleness, cross-refs |
 | S3 Code Quality | I03 `code-tomographe` | — | fmt, clippy, complexity, duplication |
 | S4 Validation | I02 `test-tomographe` | — | Test coverage, health, alignment |
-| S5 Security | I09 `security-tomographe` | I12 `ai-ml-tomographe` | AI threats from I12 feed into S5 |
+| S5 Security | I09 `security-tomographe` | I12 `ai-ml-tomographe`, I13 `dependency-tomographe` | AI threats from I12, supply chain from I13 |
 | S6 Configuration | I05 `compliance-tomographe` | — | Config validation, env management |
 | S7 Observability | I08 `observability-tomographe` | — | Metrics, alerting, logging, dashboards |
 | S8 Data Management | I06 `data-tomographe` | — | Schema, migrations, privacy, backup |
 | S9 Deployment | I07 `deployment-tomographe` | — | CI, reproducibility, rollback, release |
 | S10 Performance | I10 `performance-tomographe` | — | Profiling, benchmarks, resource usage |
 | S11 UX | I11 `ux-tomographe` | — | Components, a11y, personality, flows |
-| S12 Licensing | I05 `compliance-tomographe` | — | License compat, export control |
+| S12 Licensing | I05 `compliance-tomographe` | I13 `dependency-tomographe` | Dep licence matrix from I13, policy from I05 |
 | S13 Maintainability | I03 `code-tomographe` | — | Tech debt, complexity scoring |
 | S14 Overall Summary | Phase 5 output | — | Aggregated from all instruments |
 | K1 Permission System | I05 `compliance-tomographe` | I09 `security-tomographe` | Completeness from I05, correctness from I09 |
@@ -628,6 +689,7 @@ qualitoscope/
 ├── README.md                          # This file
 ├── config.yaml                        # Orchestration config
 ├── methods/
+│   ├── 00-auto-discovery.md
 │   ├── 01-instrument-inventory.md
 │   ├── 02-delegation.md
 │   ├── 03-overlap-resolution.md
@@ -637,7 +699,7 @@ qualitoscope/
 │   ├── 07-delta-analysis.md
 │   └── 08-report.md
 ├── checklists/
-│   ├── instrument-readiness.md        # All 12 instruments present and configured
+│   ├── instrument-readiness.md        # All 13 instruments present and configured
 │   ├── dr-section-mapping.md          # Instrument → DR section mapping
 │   └── overlap-ownership.md           # Ownership rules for shared concerns
 └── templates/
@@ -704,6 +766,9 @@ instruments:
   - id: I12
     name: ai-ml-tomographe
     sections: [AI-ML]
+  - id: I13
+    name: dependency-tomographe
+    sections: [S12, S5]
 
 thresholds:
   verdict:

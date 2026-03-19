@@ -18,12 +18,8 @@ thresholds:
     anti_traits_enforced: true
     confidence_tiers: 4
 
-scope:
-  # ui_source_dirs: paths containing UI component source files — the LLM detects the framework
-  ui_source_dirs: []
-  personality_files: []
-  ux_spec: ""
-  design_docs: []
+# Paths: read from project-profile.yaml in the target project root.
+# Fields used: ui_source_dirs, personality_files, ux_spec, design_docs.
 
 delta:
   # output goes to output/YYYY-MM-DD_{project_name}/ at repo root — set project_name in qualitoscope/config.yaml

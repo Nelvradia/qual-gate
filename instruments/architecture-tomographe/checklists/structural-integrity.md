@@ -1,10 +1,10 @@
 # Structural Integrity Checklist
 
-- [ ] Crate boundaries match documented architecture in CLAUDE.md
-- [ ] No orphan modules (every .rs file reachable from mod.rs/main.rs)
-- [ ] Public API surface is minimal (prefer pub(crate) over pub)
-- [ ] Database separation matches the database model (schema documentation)
-- [ ] Permission config domains match component/module domain registrations
-- [ ] Skill registration in mod.rs matches documented skill list
-- [ ] No process boundary violations (core service, permission service, monitoring service are separate)
-- [ ] Shared types in common crate are stable (low churn rate)
+- [ ] Module boundaries match documented architecture
+- [ ] No orphan modules (every source file reachable from the module entry point — e.g. `mod.rs` in Rust, `__init__.py` in Python, `index.ts` in TypeScript)
+- [ ] Public API surface is minimal (prefer internal visibility — e.g. `pub(crate)` in Rust, `_` prefix in Python, non-exported symbols in Go/TypeScript)
+- [ ] Database separation matches the documented data model (schema documentation)
+- [ ] Access control config domains match component/module domain registrations (when `toggles.permission_system` is true)
+- [ ] Module registration in entry points matches documented module list
+- [ ] No process boundary violations (independently deployed services remain separate)
+- [ ] Shared types in common/core module are stable (low churn rate)

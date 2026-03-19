@@ -10,11 +10,8 @@ thresholds:
   drift_items_minor: 5
   evolution_score_green: 0.80
   evolution_score_yellow: 0.60
-scope:
-  # source_dirs: paths to source code roots — the LLM discovers module structure within these
-  source_dirs: []
-  doc_sources: [CLAUDE.md, docs/four-pillars/, .claude/decisions/]
-  exclude: [vendor/, target/, node_modules/]
+# Paths: read from project-profile.yaml in the target project root.
+# Fields used: source_dirs, architecture.doc_sources, exclude.
 layers:
   # Define layer rules per component. Example:
   # primary_service:

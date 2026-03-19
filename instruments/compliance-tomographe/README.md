@@ -132,6 +132,10 @@ grep -rn 'password\|secret\|token\|key' config/ --include='*.yaml' --include='*.
 
 ## Phase 3 — Access Control Coverage (AC1)
 
+> **Prerequisite:** This phase runs only when `profile.toggles.permission_system` is `true`.
+> When false, log `Observation: "No permission system configured — AC checks skipped"`
+> and skip to Phase 4.
+
 **Goal:** Full AC1 checklist execution — verifies the project's permission system covers all component actions.
 
 ### LLM steps
@@ -208,6 +212,10 @@ grep -rn 'fail_closed\|unreachable\|access.*unavailable\|default.*block\|None.*=
 
 ## Phase 4 — GDPR Readiness
 
+> **Prerequisite:** This phase runs only when `profile.toggles.gdpr_scope` is `true`.
+> When false, log `Observation: "GDPR scope not configured — GDPR checks skipped"`
+> and skip to Phase 5.
+
 **Goal:** Assess GDPR compliance posture for personal data processing.
 
 ### LLM steps
@@ -253,6 +261,10 @@ grep -rn 'consent\|opt_in\|opt_out\|accept\|agree' src/ apps/ --include='*.rs' -
 ---
 
 ## Phase 5 — AI Act Readiness
+
+> **Prerequisite:** This phase runs only when `profile.toggles.ai_act_scope` is `true`.
+> When false, log `Observation: "AI Act scope not configured — AI Act checks skipped"`
+> and skip to Phase 6.
 
 **Goal:** Assess preparedness for EU AI Act compliance.
 
@@ -348,6 +360,8 @@ grep -rn 'cryptography\|pycryptodome\|pyOpenSSL\|nacl\|paramiko' pyproject.toml 
 ---
 
 ## Configuration
+
+This instrument reads project-specific paths from `project-profile.yaml` in the target project root. If a profile field is absent, the default from the profile schema applies. Instrument-specific thresholds remain in this instrument's `config.yaml`.
 
 ```yaml
 thresholds:

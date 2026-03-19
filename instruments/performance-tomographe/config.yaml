@@ -28,12 +28,11 @@ thresholds:
     primary_service_ready_max_seconds: 15
     authorization_service_ready_max_seconds: 5
 
+# Paths: read from project-profile.yaml in the target project root.
+# Fields used: source_dirs, compose_files, service_url.
 scope:
-  service_url: "http://localhost:8080"     # adjust to project layout
   requires_auth: true
   measure_duration_minutes: 10
-  source_dirs: []                  # adjust to project layout — language-agnostic paths
-  compose_file: docker-compose.yml
 
 delta:
   # output goes to output/YYYY-MM-DD_{project_name}/ at repo root — set project_name in qualitoscope/config.yaml

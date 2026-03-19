@@ -263,6 +263,8 @@ ls -lh data/*.db data/**/*.db 2>/dev/null
 
 ## Configuration
 
+This instrument reads project-specific paths from `project-profile.yaml` in the target project root. If a profile field is absent, the default from the profile schema applies. Instrument-specific thresholds remain in this instrument's `config.yaml`.
+
 ```yaml
 thresholds:
   schema:

@@ -1,6 +1,6 @@
 # Instrument Readiness Checklist
 
-Master checklist verifying all 12 instruments are present, configured, and runnable. Used by Phase 1 (Instrument Inventory).
+Master checklist verifying all 13 instruments are present, configured, and runnable. Used by Phase 1 (Instrument Inventory).
 
 ## Instruments (all under `instruments/`)
 
@@ -16,6 +16,7 @@ Master checklist verifying all 12 instruments are present, configured, and runna
 - [ ] `instruments/performance-tomographe/` — directory exists, README.md present, config.yaml valid
 - [ ] `instruments/security-tomographe/` — directory exists, README.md present, config.yaml valid
 - [ ] `instruments/ux-tomographe/` — directory exists, README.md present, config.yaml valid
+- [ ] `instruments/dependency-tomographe/` — directory exists, README.md present, config.yaml valid
 
 ## Structure Validation (per instrument)
 

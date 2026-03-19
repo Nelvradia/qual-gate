@@ -1,7 +1,9 @@
 # qualitoscope/config.yaml
 # project_name: the target project being scanned. Combined with the run date to form
 # the output folder: output/YYYY-MM-DD_project-name/ at the qual-gate repo root.
-# Set this before running any instrument or the qualitoscope.
+# Primary source: target project's project-profile.yaml → name field.
+# This field is a fallback when no project-profile.yaml exists.
+# When a profile is present, project_name is always read from profile.name.
 project_name: ""          # e.g. "my-project" → output goes to output/2026-03-18_my-project/
 
 base_dir: instruments
@@ -43,6 +45,9 @@ instruments:
   - id: I12
     name: ai-ml-tomographe
     sections: [AI-ML]
+  - id: I13
+    name: dependency-tomographe
+    sections: [S12, S5]
 
 thresholds:
   verdict:
@@ -71,9 +76,10 @@ cross_correlation:
       instruments: [test, security]
       severity: Major
     - id: XC-02
-      name: skill_without_enforcer
+      name: component_without_auth_entry
       instruments: [code, compliance]
       severity: Critical
+      condition: profile.toggles.permission_system
     - id: XC-03
       name: migration_without_g02
       instruments: [data, documentation]
@@ -83,9 +89,10 @@ cross_correlation:
       instruments: [observability, documentation]
       severity: Observation
     - id: XC-05
-      name: soul_change_without_eval
+      name: ai_config_change_without_eval
       instruments: [ai-ml, documentation]
       severity: Minor
+      condition: profile.toggles.ai_ml_components
     - id: XC-06
       name: ci_job_not_gating
       instruments: [deployment, test]

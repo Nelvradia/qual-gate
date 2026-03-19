@@ -21,13 +21,9 @@ thresholds:
     risk_classification: true
     logging_art12: true
     human_oversight: true
-scope:
-  access_control_config: config/access-control.yaml  # adjust to project layout
-  component_manifest: config/component-permission-manifest.yaml
-  boundary_tests: tests/access-control/
-  config_dir: config/
-  business_docs: docs/business_case/
-  source_dirs: []                                     # directories to scan for source files (phases 1, 4, 6)
+# Paths: read from project-profile.yaml in the target project root.
+# Fields used: access_control_config, component_manifest, boundary_tests,
+# config_dir, business_docs, source_dirs.
 
 delta:
   # output goes to output/YYYY-MM-DD_{project_name}/ at repo root — set project_name in qualitoscope/config.yaml

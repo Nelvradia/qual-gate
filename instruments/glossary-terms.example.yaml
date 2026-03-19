@@ -1,0 +1,23 @@
+# glossary-terms.example.yaml — Reference format for --terms-file
+# List bare terms that should always be qualified in source code.
+# Each entry: term name + regex pattern + qualified forms that suppress false positives.
+
+terms:
+  domain:
+    pattern: '(?<![a-z_])domain(?![a-z_])'
+    qualified_ok: ['domain:', 'domain_label', 'sub_domain', 'domain_key']
+  context:
+    pattern: '(?<![a-z_])context(?![a-z_])'
+    qualified_ok: ['conversation_context', 'life_context', 'code_context', '.context(']
+  trigger:
+    pattern: '(?<![a-z_])trigger(?![a-z_])'
+    qualified_ok: ['proactive_trigger', 'workflow_trigger', 'trigger_name', 'trigger_id']
+  session:
+    pattern: '(?<![a-z_])session(?![a-z_])'
+    qualified_ok: ['conversation_session', 'time_session', 'timer_session', 'session_id']
+  template:
+    pattern: '(?<![a-z_])template(?![a-z_])'
+    qualified_ok: ['template_id', 'template_name', 'template_category']
+  thread:
+    pattern: '(?<![a-z_])thread(?![a-z_])'
+    qualified_ok: ['thread_id', 'thread_summary', 'std::thread']

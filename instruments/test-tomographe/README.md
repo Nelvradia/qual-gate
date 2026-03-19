@@ -390,7 +390,7 @@ Compile all findings into `output/YYYY-MM-DD_{project_name}/TR{n}-test-tomograph
 
 ## Configuration
 
-See `config.yaml` for thresholds and scope.
+This instrument reads project-specific paths from `project-profile.yaml` in the target project root. If a profile field is absent, the default from the profile schema applies. Instrument-specific thresholds remain in this instrument's `config.yaml`.
 
 ---
 

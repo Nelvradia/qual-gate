@@ -216,8 +216,37 @@ grep -rn 'rate_limit\|throttle\|RateLimit\|slowapi\|governor' src/ --include='*.
 1. Read source files and identify where sensitive data is stored — look for database write operations, file writes, and cache sets that involve user data, credentials, or private content.
 2. For each storage location, determine whether encryption is applied. The implementation varies: SQLCipher for SQLite, encrypted fields in ORMs, file-level encryption, encrypted volumes, etc. Flag any sensitive data stored in plaintext.
 3. Read network communication code and verify TLS is used for all external connections — look for `https://`, `wss://`, and TLS configuration in server setup code. Flag any plaintext (`http://`, `ws://`) connections to external services.
-4. Identify key storage: verify that cryptographic keys are stored in hardware-backed keystores or OS keychains where available (Android Keystore, iOS Secure Enclave, OS secret-service on Linux/macOS), not in plaintext config files or environment variables.
+4. Identify key storage using the platform-conditional checks below.
 5. Identify any use of deprecated or weak algorithms: MD5 or SHA1 used for security purposes, DES, 3DES, RC4, RSA with key sizes below 2048 bits, or AES in ECB mode.
+
+### Key Storage (platform-conditional)
+
+Run checks only for platforms declared in `profile.platforms.targets`.
+If no platforms declared, detect from project structure (see Phase 0 auto-discovery).
+
+#### Android (requires `android` in targets)
+- Android Keystore (`AndroidKeyStore`, hardware-backed)
+- BiometricPrompt for high-tier actions
+- OkHttp / HttpsURLConnection TLS enforcement
+
+#### iOS (requires `ios` in targets)
+- Secure Enclave / Keychain storage
+- LocalAuthentication framework for biometrics
+- App Transport Security (ATS) enforcement
+
+#### Desktop (requires `desktop` in targets)
+- OS keyring (libsecret / Credential Manager / Keychain)
+- No plaintext credential storage in config files
+
+#### Web (requires `web` in targets)
+- TLS/HTTPS everywhere, HSTS headers
+- CSP headers, no inline scripts
+- Secure cookie flags (HttpOnly, Secure, SameSite)
+
+#### Universal (always applies)
+- No weak algorithms (MD5, SHA1, DES, RC4, ECB)
+- E2E encryption where applicable
+- No plaintext secrets in environment variables or config
 
 ### Accelerator tools (optional)
 
@@ -237,15 +266,21 @@ grep -rn 'https\|wss://\|tls\.' src/ apps/ --include='*.ts' --include='*.js'
 # Data in transit — Kotlin/Android
 grep -rn 'HttpsURLConnection\|OkHttp\|SSLContext' apps/android/ --include='*.kt'
 
-# Key storage — Android Keystore
+# Key storage — Android Keystore (conditional on android target)
 grep -rn 'KeyStore\|keystore\|AndroidKeyStore' apps/android/ --include='*.kt'
 
-# Key storage — Desktop (OS keyring)
-grep -rn 'keyring\|secret.service\|SecretService' apps/desktop/src-tauri/ --include='*.rs'
+# Key storage — iOS Keychain (conditional on ios target)
+grep -rn 'SecItem\|kSecClass\|Keychain\|SecureEnclave' ios/ --include='*.swift'
 
-# Weak algorithm patterns
+# Key storage — Desktop OS keyring (conditional on desktop target)
+grep -rn 'keyring\|secret.service\|SecretService\|Credential Manager' apps/desktop/ --include='*.rs' --include='*.ts'
+
+# Web — security headers (conditional on web target)
+grep -rn 'HSTS\|Content-Security-Policy\|X-Frame-Options\|SameSite' src/ config/ --include='*.py' --include='*.ts' --include='*.yaml'
+
+# Weak algorithm patterns (universal — always run)
 grep -rn 'MD5\|SHA1\|DES\|RC4\|ECB\|md5\|sha1' src/ apps/ \
-  --include='*.rs' --include='*.py' --include='*.ts' --include='*.kt'
+  --include='*.rs' --include='*.py' --include='*.ts' --include='*.kt' --include='*.swift'
 ```
 
 ### Checklist
@@ -254,9 +289,9 @@ grep -rn 'MD5\|SHA1\|DES\|RC4\|ECB\|md5\|sha1' src/ apps/ \
 - [ ] Non-sensitive databases are plaintext (appropriate — no over-encryption)
 - [ ] WebSocket connections use WSS (TLS)
 - [ ] E2E encryption is mandatory (no fallback to unencrypted)
-- [ ] Keys stored in hardware-backed keystore (Android) / OS keyring (Desktop)
+- [ ] Keys stored in platform-appropriate secure storage (see platform-conditional checks above)
 - [ ] Key exchange uses a secure protocol
-- [ ] Fingerprint verification is enforced (not bypassable)
+- [ ] No weak algorithms (MD5, SHA1, DES, RC4, ECB) used for security purposes
 
 ---
 
@@ -307,6 +342,10 @@ grep -A20 'environment:' docker-compose.yml | grep -i 'password\|secret\|key\|to
 ---
 
 ## Phase 6 — AI Threat Model
+
+> **Prerequisite:** This phase runs only when `profile.toggles.ai_ml_components` is `true`.
+> When false, log `Observation: "No AI/ML components configured — AI threat model skipped"`
+> and skip to Phase 7.
 
 **Goal:** Evaluate defenses against AI-specific attack vectors.
 
@@ -370,6 +409,10 @@ grep -rn 'validate_tool\|tool_auth\|per_agent\|function_call' src/ \
 
 ## Phase 7 — Access Control
 
+> **Prerequisite:** This phase runs only when `profile.toggles.permission_system` is `true`.
+> When false, log `Observation: "No permission system configured — AC checks skipped"`
+> and skip to Phase 8.
+
 **Goal:** Verify the permission/access control configuration, token lifecycle, and device management.
 
 ### Steps
@@ -402,7 +445,7 @@ grep -rn 'biometric\|BiometricPrompt\|fingerprint' apps/android/ --include='*.kt
 - [ ] Destructive actions (delete, format) are hard-locked or require explicit approval
 - [ ] Bearer token has expiry (not permanent)
 - [ ] Device auto-revocation after inactivity period
-- [ ] Biometric required for high-tier approval on mobile
+- [ ] Biometric required for high-tier approval on mobile (when `android` or `ios` in `profile.platforms.targets`)
 - [ ] Fail-closed: access control service unreachable -> all actions blocked
 
 ---
@@ -444,6 +487,8 @@ security-tomographe/
 ---
 
 ## Configuration (config.yaml)
+
+This instrument reads project-specific paths from `project-profile.yaml` in the target project root. If a profile field is absent, the default from the profile schema applies. Instrument-specific thresholds remain in this instrument's `config.yaml`.
 
 ```yaml
 thresholds:
