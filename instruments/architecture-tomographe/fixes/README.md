@@ -1,4 +1,14 @@
-# Auto-Generated Fix Suggestions
+---
+title: "Architecture Tomographe — Fix Guide Index"
+status: current
+last-updated: 2026-03-19
+---
 
-This directory is populated by the scanner when it finds auto-fixable issues.
-Review all suggestions before applying.
+# Architecture Tomographe — Fix Guide Index
+
+| Finding Category | File | Severity Range |
+|---|---|---|
+| Circular Dependency | [circular-dependency.md](circular-dependency.md) | Major–Critical |
+| Layer Violation | [layer-violation.md](layer-violation.md) | Major |
+| God Module | [god-module.md](god-module.md) | Major |
+| Architectural Drift | [architectural-drift.md](architectural-drift.md) | Minor–Major |
