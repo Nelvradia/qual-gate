@@ -649,8 +649,8 @@ Started guide, which needs both the profile and auto-discovery to be done).
 | v0.3.0 | Initial open-source release — 13 instruments, orchestrator | Shipped |
 | v0.4.0 | Project profile schema + path centralisation (Phase A, WS1) | Shipped |
 | v0.5.0 | Auto-discovery, instrument generalisation, orchestrator completeness (Phase B, WS2 + WS3 + WS4) | Shipped |
-| v0.6.0 | Remediation library + documentation + onboarding (Phase C, WS5 + WS6) | In progress |
-| v1.0.0 | Release — all workstreams complete, tested against 3+ diverse projects | Planned |
+| v0.6.0 | Remediation library + documentation + onboarding (Phase C, WS5 + WS6) | Shipped (merged into v1.0.0) |
+| v1.0.0 | Release — all workstreams complete, validated against Boost.JSON, OpenClaw, qual-gate | Shipped |
 
 ---
 

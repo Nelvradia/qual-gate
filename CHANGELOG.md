@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased] — v0.6.0-dev
+## [1.0.0] — 2026-03-19
 
 ### Added
 - Remediation library: fix guides for all 13 instruments with per-language code examples
