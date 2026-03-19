@@ -1,0 +1,32 @@
+spec_version: "2.0"
+id: I99
+name: valid-tomographe
+version: 1.0.0
+description: "A valid test instrument for fixture purposes."
+report_prefix: VT
+dr_sections: []
+phases:
+  - id: 1
+    name: "Scan"
+    requires_llm: true
+    prerequisites: []
+  - id: 2
+    name: "Report"
+    requires_llm: true
+    prerequisites: [1]
+applicability:
+  languages: []
+  platforms: []
+  toggles: []
+accelerators: []
+required_files:
+  - README.md
+  - config.yaml
+  - instrument.yaml
+  - methods/
+  - checklists/
+  - templates/report-template.md
+  - fixes/README.md
+profile_fields:
+  - paths.source_dirs
+dependencies: []

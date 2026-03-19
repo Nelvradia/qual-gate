@@ -1,0 +1,99 @@
+spec_version: "2.0"
+
+# ─── Identity ───────────────────────────────────────────────────────
+id: I09
+name: security-tomographe
+version: 1.0.0
+description: >
+  Security posture scanner. Scans dependencies for CVEs, detects leaked
+  secrets, maps attack surface, verifies encryption, audits container
+  hardening, and evaluates AI-specific threats.
+report_prefix: SS
+
+# ─── DR Mapping ─────────────────────────────────────────────────────
+dr_sections: [S5]
+
+# ─── Phase Declarations ─────────────────────────────────────────────
+phases:
+  - id: 1
+    name: "Supply Chain"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 2
+    name: "Secrets"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 3
+    name: "Attack Surface"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 4
+    name: "Encryption"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 5
+    name: "Container Hardening"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 6
+    name: "AI Threat Model"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 7
+    name: "Access Control"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 8
+    name: "Report"
+    requires_llm: true
+    prerequisites: [1, 2, 3, 4, 5, 6, 7]
+
+# ─── Applicability ──────────────────────────────────────────────────
+applicability:
+  languages: []
+  platforms: []
+  toggles: [permission_system, ai_ml_components]
+
+# ─── Accelerator Tools ──────────────────────────────────────────────
+accelerators:
+  - tool: cargo-audit
+    check: "which cargo-audit"
+    command: "cargo audit"
+    phases: [1]
+
+  - tool: trivy
+    check: "which trivy"
+    command: "trivy fs --severity HIGH,CRITICAL ."
+    phases: [1, 5]
+
+  - tool: gitleaks
+    check: "which gitleaks"
+    command: "gitleaks detect --no-git"
+    phases: [2]
+
+# ─── Required Files ─────────────────────────────────────────────────
+required_files:
+  - README.md
+  - config.yaml
+  - instrument.yaml
+  - methods/
+  - checklists/
+  - templates/report-template.md
+  - fixes/README.md
+
+# ─── Profile Fields Consumed ────────────────────────────────────────
+profile_fields:
+  - paths.source_dirs
+  - paths.compose_files
+  - conventions.access_control_config
+  - paths.ci_config
+
+# ─── Instrument Dependencies ────────────────────────────────────────
+dependencies: []

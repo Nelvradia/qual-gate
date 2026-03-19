@@ -7,6 +7,26 @@
 
 ---
 # ──────────────────────────────────────────────────────────────────────────────
+# extends — profile inheritance
+# ──────────────────────────────────────────────────────────────────────────────
+extends:
+  type: string
+  required: false
+  default: null
+  description: >
+    Path or URL to a parent profile. Child inherits all fields and
+    overrides selectively.
+
+    Merge semantics:
+    - Scalars: child overrides parent
+    - Lists: child REPLACES parent (explicit > implicit)
+    - Objects: deep merge (child keys override, parent keys preserved)
+    - Toggles: child can only enable, never disable parent toggles
+
+    Max depth: 3 levels. Circular references = validation error.
+  consumed_by: [qualitoscope]
+
+# ──────────────────────────────────────────────────────────────────────────────
 # identity — project metadata used in output naming and documentation
 # ──────────────────────────────────────────────────────────────────────────────
 identity:

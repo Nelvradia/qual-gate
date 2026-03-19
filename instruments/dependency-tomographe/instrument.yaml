@@ -1,0 +1,93 @@
+spec_version: "2.0"
+
+# ─── Identity ───────────────────────────────────────────────────────
+id: I13
+name: dependency-tomographe
+version: 1.0.0
+description: >
+  Dependency lifecycle scanner — ecosystem-agnostic. Audits every
+  declared dependency across all package managers: usage, licences,
+  health, version pinning, and transitive risk.
+report_prefix: DT
+
+# ─── DR Mapping ─────────────────────────────────────────────────────
+dr_sections: [S12, S5]
+
+# ─── Phase Declarations ─────────────────────────────────────────────
+phases:
+  - id: 1
+    name: "Ecosystem Discovery"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 2
+    name: "Usage Analysis"
+    requires_llm: true
+    prerequisites: [1]
+
+  - id: 3
+    name: "Licence Risk Matrix"
+    requires_llm: true
+    prerequisites: [1]
+
+  - id: 4
+    name: "Dependency Health"
+    requires_llm: true
+    prerequisites: [1]
+
+  - id: 5
+    name: "Version & Pinning Discipline"
+    requires_llm: true
+    prerequisites: [1]
+
+  - id: 6
+    name: "Transitive Risk"
+    requires_llm: true
+    prerequisites: [1]
+
+  - id: 7
+    name: "Report"
+    requires_llm: true
+    prerequisites: [1, 2, 3, 4, 5, 6]
+
+# ─── Applicability ──────────────────────────────────────────────────
+applicability:
+  languages: []
+  platforms: []
+  toggles: []
+
+# ─── Accelerator Tools ──────────────────────────────────────────────
+accelerators:
+  - tool: cargo
+    check: "which cargo"
+    command: "cargo tree --workspace --depth 1"
+    phases: [1, 6]
+
+  - tool: npm
+    check: "which npm"
+    command: "npm ls --all --json"
+    phases: [1, 6]
+
+  - tool: pip
+    check: "which pip"
+    command: "pip list --format=json"
+    phases: [1]
+
+# ─── Required Files ─────────────────────────────────────────────────
+required_files:
+  - README.md
+  - config.yaml
+  - instrument.yaml
+  - methods/
+  - checklists/
+  - templates/report-template.md
+  - fixes/README.md
+
+# ─── Profile Fields Consumed ────────────────────────────────────────
+profile_fields:
+  - paths.source_dirs
+  - stack.package_managers
+  - exclude
+
+# ─── Instrument Dependencies ────────────────────────────────────────
+dependencies: []

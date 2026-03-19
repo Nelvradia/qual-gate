@@ -1,0 +1,80 @@
+spec_version: "2.0"
+
+# ─── Identity ───────────────────────────────────────────────────────
+id: I08
+name: observability-tomographe
+version: 1.0.0
+description: >
+  Observability health scanner. Audits metrics coverage, alerting rules,
+  log quality, dashboards, health endpoints, and audit trail completeness.
+report_prefix: OB
+
+# ─── DR Mapping ─────────────────────────────────────────────────────
+dr_sections: [S7]
+
+# ─── Phase Declarations ─────────────────────────────────────────────
+phases:
+  - id: 1
+    name: "Metrics Coverage"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 2
+    name: "Alerting Rules"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 3
+    name: "Log Quality"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 4
+    name: "Dashboard Health"
+    requires_llm: true
+    prerequisites: [1]
+
+  - id: 5
+    name: "Health Endpoints"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 6
+    name: "Audit Trail"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 7
+    name: "Report"
+    requires_llm: true
+    prerequisites: [1, 2, 3, 4, 5, 6]
+
+# ─── Applicability ──────────────────────────────────────────────────
+applicability:
+  languages: []
+  platforms: []
+  toggles: []
+
+# ─── Accelerator Tools ──────────────────────────────────────────────
+accelerators: []
+
+# ─── Required Files ─────────────────────────────────────────────────
+required_files:
+  - README.md
+  - config.yaml
+  - instrument.yaml
+  - methods/
+  - checklists/
+  - templates/report-template.md
+  - fixes/README.md
+
+# ─── Profile Fields Consumed ────────────────────────────────────────
+profile_fields:
+  - paths.source_dirs
+  - conventions.metrics_source_dirs
+  - conventions.metrics_doc
+  - conventions.alert_rules
+  - conventions.dashboards
+
+# ─── Instrument Dependencies ────────────────────────────────────────
+dependencies: []

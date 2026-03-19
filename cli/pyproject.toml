@@ -1,0 +1,24 @@
+[project]
+name = "qual-gate-cli"
+version = "0.1.0"
+description = "CLI tools for qual-gate instrument validation and profile resolution"
+requires-python = ">=3.13"
+dependencies = [
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.9",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

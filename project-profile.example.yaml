@@ -6,6 +6,15 @@
 # Only `name` and `stack.languages` are required — everything else is optional
 # and falls back to convention-based defaults defined in project-profile.schema.yaml.
 
+# ─── extends (optional) ──────────────────────────────────────────────────────
+# Inherit from a parent profile and override selectively.
+# Merge rules: scalars override, lists replace, objects deep-merge,
+# toggles can only enable (never disable parent toggles).
+# Max depth: 3 levels. Circular references are a validation error.
+#
+# extends: ./profiles/base.yaml              # local path
+# extends: https://example.com/base.yaml     # HTTPS URL
+
 # ─── identity ────────────────────────────────────────────────────────────────
 # Project metadata used in output naming and report headers.
 

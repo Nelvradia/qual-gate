@@ -1,0 +1,208 @@
+# instrument.schema.yaml — Instrument Manifest Schema
+# Version: 2.0
+# Purpose: Defines the structure every instrument.yaml must follow.
+# Location: Each instrument directory contains an instrument.yaml that
+#           conforms to this schema.
+#
+# This schema is the single source of truth for instrument metadata.
+# The validation tool (cli/validate_instrument.py) enforces it.
+
+spec_version:
+  type: string
+  required: true
+  description: >
+    Schema version this manifest conforms to. Must be "2.0".
+    Allows future schema evolution without breaking older manifests.
+
+# ─── Identity ───────────────────────────────────────────────────────
+
+id:
+  type: string
+  required: true
+  pattern: "^I\\d{2,3}$"
+  description: >
+    Unique instrument identifier. Must match the id in
+    qualitoscope/config.yaml. Format: I01, I02, ..., I99.
+
+name:
+  type: string
+  required: true
+  pattern: "^[a-z][a-z0-9-]+-tomographe$"
+  description: >
+    Instrument directory name. Must match the directory under
+    instruments/ and the name in qualitoscope/config.yaml.
+
+version:
+  type: string
+  required: true
+  pattern: "^\\d+\\.\\d+\\.\\d+(-[a-zA-Z0-9.]+)?$"
+  description: >
+    SemVer version of this instrument. Independent of the qual-gate
+    version. Bump when phases, thresholds, or severity rules change.
+
+description:
+  type: string
+  required: true
+  description: >
+    One-line summary of what this instrument scans. Should match the
+    first sentence of the instrument's README.md.
+
+report_prefix:
+  type: string
+  required: true
+  pattern: "^[A-Z]{2,4}$"
+  description: >
+    Short uppercase prefix used in report run identifiers (e.g., AR, TR,
+    CQ). Must match the run: field in templates/report-template.md.
+
+# ─── DR Mapping ─────────────────────────────────────────────────────
+
+dr_sections:
+  type: list[string]
+  required: true
+  min_items: 0
+  description: >
+    Design Review sections this instrument covers. Values are section
+    IDs from qualitoscope/checklists/dr-section-mapping.md (e.g., S1,
+    S5, K2). Empty list for instruments that define new quality
+    dimensions not yet in the DR template.
+    Must match qualitoscope/config.yaml sections for this instrument.
+
+# ─── Phase Declarations ─────────────────────────────────────────────
+
+phases:
+  type: list[object]
+  required: true
+  min_items: 1
+  description: >
+    Ordered list of scan phases. Each phase maps to a method file in
+    methods/. The report phase (last) is always included.
+  items:
+    id:
+      type: integer
+      required: true
+      description: >
+        1-based phase number. Must match the numeric prefix of the
+        corresponding method file (e.g., phase 1 → methods/01-*.md).
+    name:
+      type: string
+      required: true
+      description: >
+        Human-readable phase name. Should match the method file name
+        (e.g., "Module Mapping" for 01-module-mapping.md).
+    requires_llm:
+      type: boolean
+      required: true
+      description: >
+        Whether this phase requires LLM reasoning (true) or can be
+        executed purely with accelerator commands (false).
+    prerequisites:
+      type: list[integer]
+      required: true
+      description: >
+        List of phase IDs that must complete before this phase starts.
+        Empty list means the phase has no dependencies within this
+        instrument. Enables parallel execution of independent phases.
+
+# ─── Applicability ──────────────────────────────────────────────────
+
+applicability:
+  type: object
+  required: false
+  default: {}
+  description: >
+    Conditions under which this instrument is relevant. Empty or
+    omitted fields mean "always applicable."
+  fields:
+    languages:
+      type: list[string]
+      required: false
+      default: []
+      description: >
+        Language filter. Empty list = applicable to all languages.
+        Values match project-profile.yaml stack.languages.
+    platforms:
+      type: list[string]
+      required: false
+      default: []
+      description: >
+        Platform filter. Empty list = applicable to all platforms.
+        Values match project-profile.yaml platforms.targets.
+    toggles:
+      type: list[string]
+      required: false
+      default: []
+      description: >
+        Profile toggles that gate this instrument. If specified, the
+        instrument is only active when ALL listed toggles are true.
+        Values match project-profile.yaml toggles field names.
+
+# ─── Accelerator Tools ──────────────────────────────────────────────
+
+accelerators:
+  type: list[object]
+  required: false
+  default: []
+  description: >
+    External tools that can speed up specific phases. These are
+    optional — every instrument must function without them (LLM-only
+    fallback). Listed here for toolchain validation and CI integration.
+  items:
+    tool:
+      type: string
+      required: true
+      description: >
+        Tool name (e.g., cargo, npm, ruff, jscpd, vulture).
+    check:
+      type: string
+      required: true
+      description: >
+        Shell command to verify the tool is available. Should exit 0
+        if present (e.g., "which cargo", "command -v ruff").
+    command:
+      type: string
+      required: false
+      description: >
+        Example invocation. Informational — the actual commands are in
+        the method files.
+    phases:
+      type: list[integer]
+      required: true
+      description: >
+        Phase IDs where this tool is used.
+
+# ─── Required Files ─────────────────────────────────────────────────
+
+required_files:
+  type: list[string]
+  required: true
+  min_items: 1
+  description: >
+    Files and directories that must exist in the instrument directory.
+    Paths are relative to the instrument root. Trailing / indicates a
+    directory. The validation tool checks these exist on disk.
+
+# ─── Profile Fields Consumed ────────────────────────────────────────
+
+profile_fields:
+  type: list[string]
+  required: true
+  description: >
+    Dotted paths into project-profile.yaml that this instrument reads.
+    Used for documentation, dependency tracking, and profile
+    completeness validation. Empty list means the instrument does not
+    read the project profile (unusual).
+    Examples: paths.source_dirs, toggles.permission_system,
+    conventions.access_control_config.
+
+# ─── Instrument Dependencies ────────────────────────────────────────
+
+dependencies:
+  type: list[string]
+  required: false
+  default: []
+  description: >
+    IDs of other instruments that must run before this one. Used by the
+    orchestrator to determine execution order. Empty list = no
+    inter-instrument dependencies (most instruments).
+    Example: ["I03"] means code-tomographe must complete first.

@@ -1,0 +1,82 @@
+spec_version: "2.0"
+
+# ─── Identity ───────────────────────────────────────────────────────
+id: I06
+name: data-tomographe
+version: 1.0.0
+description: >
+  Data and schema health scanner. Audits schema alignment with
+  documentation, migration integrity, cross-database consistency, backup
+  coverage, data classification tier enforcement, and data lifecycle.
+report_prefix: DA
+
+# ─── DR Mapping ─────────────────────────────────────────────────────
+dr_sections: [S8]
+
+# ─── Phase Declarations ─────────────────────────────────────────────
+phases:
+  - id: 1
+    name: "Schema Alignment"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 2
+    name: "Migration Health"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 3
+    name: "Data Classification Tiers"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 4
+    name: "Cross-DB Integrity"
+    requires_llm: true
+    prerequisites: [1]
+
+  - id: 5
+    name: "Backup Coverage"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 6
+    name: "Data Lifecycle"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 7
+    name: "Report"
+    requires_llm: true
+    prerequisites: [1, 2, 3, 4, 5, 6]
+
+# ─── Applicability ──────────────────────────────────────────────────
+applicability:
+  languages: []
+  platforms: []
+  toggles: [gdpr_scope]
+
+# ─── Accelerator Tools ──────────────────────────────────────────────
+accelerators: []
+
+# ─── Required Files ─────────────────────────────────────────────────
+required_files:
+  - README.md
+  - config.yaml
+  - instrument.yaml
+  - methods/
+  - checklists/
+  - templates/report-template.md
+  - fixes/README.md
+
+# ─── Profile Fields Consumed ────────────────────────────────────────
+profile_fields:
+  - paths.db_dir
+  - conventions.schema_map
+  - paths.config_dir
+  - paths.backup_scripts
+  - conventions.dr_runbook
+  - platforms.vector_store_url
+
+# ─── Instrument Dependencies ────────────────────────────────────────
+dependencies: []

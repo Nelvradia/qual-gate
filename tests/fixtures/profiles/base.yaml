@@ -1,0 +1,10 @@
+name: base-project
+stack:
+  languages: [python, rust]
+  ci_platform: gitlab-ci
+paths:
+  source_dirs: [src/]
+  test_dirs: [tests/]
+toggles:
+  permission_system: true
+  gdpr_scope: false

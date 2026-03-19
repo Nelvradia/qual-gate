@@ -1,0 +1,2 @@
+extends: ./grandchild.yaml
+name: too-deep-project

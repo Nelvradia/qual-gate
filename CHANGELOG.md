@@ -13,6 +13,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased] — v1.1.0-dev
+
+### Added
+
+- **instrument.yaml manifest schema** (`instrument.schema.yaml`) — machine-readable
+  spec for instrument metadata, phases, dependencies, and profile field consumption.
+- **instrument.yaml manifests for all 13 core instruments** — each instrument now has
+  a manifest declaring its identity, phases, accelerators, required files, and profile
+  fields consumed.
+- **`validate-instrument` CLI tool** (`cli/validate_instrument.py`) — validates
+  instrument directories against the manifest schema with 10 automated checks.
+- **Profile inheritance** (`extends:` field in `project-profile.schema.yaml`) — child
+  profiles inherit from parent profiles with scalar override, list replacement, object
+  deep-merge, and toggle safety semantics.
+- **Profile resolution chain** (`cli/resolve_profile.py`) — resolves `extends:` chains
+  up to 3 levels with circular reference detection and toggle safety enforcement.
+- Annotated example manifest (`instrument.example.yaml`) for hypothetical I14
+  accessibility-tomographe.
+- Unit tests for validation tool (20 tests) and profile resolution (20 tests).
+- Integration test validating all 13 core instruments against the manifest spec.
+- Test fixtures for valid/invalid instruments and profile inheritance scenarios.
+
+### Changed
+
+- `docs/instrument-authoring-guide.md` — added "Instrument Manifest" section, updated
+  directory structure and readiness checklist to require `instrument.yaml`.
+- `docs/project-profile-reference.md` — added "Inheritance" section documenting merge
+  semantics, toggle safety, depth limit, and examples.
+- `project-profile.example.yaml` — added commented `extends:` example at top.
+
+---
+
 ## [1.0.0] — 2026-03-19
 
 ### Added

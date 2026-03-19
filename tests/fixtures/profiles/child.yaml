@@ -1,0 +1,8 @@
+extends: ./base.yaml
+name: child-project
+stack:
+  languages: [python]
+paths:
+  docs_dir: docs/reference/
+toggles:
+  gdpr_scope: true

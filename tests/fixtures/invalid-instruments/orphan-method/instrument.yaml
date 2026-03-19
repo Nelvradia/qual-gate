@@ -1,0 +1,20 @@
+spec_version: "2.0"
+id: I99
+name: orphan-tomographe
+version: 1.0.0
+description: "Instrument with an orphan method file."
+report_prefix: OR
+dr_sections: []
+phases:
+  - id: 1
+    name: "Scan"
+    requires_llm: true
+    prerequisites: []
+required_files:
+  - README.md
+  - config.yaml
+  - instrument.yaml
+  - methods/
+  - templates/report-template.md
+  - fixes/README.md
+profile_fields: []

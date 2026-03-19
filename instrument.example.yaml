@@ -1,0 +1,117 @@
+# instrument.example.yaml — Annotated Example Manifest
+#
+# This is a hypothetical I14 accessibility-tomographe to demonstrate
+# all manifest fields. Real instrument manifests live in
+# instruments/{name}/instrument.yaml.
+#
+# Schema: instrument.schema.yaml (spec_version: "2.0")
+# Guide:  docs/instrument-authoring-guide.md
+
+spec_version: "2.0"
+
+# ─── Identity ───────────────────────────────────────────────────────
+# These fields uniquely identify the instrument and must stay in sync
+# with qualitoscope/config.yaml and the directory name.
+
+id: I14
+name: accessibility-tomographe
+version: 1.0.0
+description: >
+  Accessibility compliance scanner. Audits WCAG 2.2 conformance,
+  assistive technology compatibility, and inclusive design patterns
+  across web, mobile, and desktop targets.
+report_prefix: AC
+
+# ─── DR Mapping ─────────────────────────────────────────────────────
+# Which Design Review sections this instrument populates.
+# Empty list if the instrument defines a new quality dimension.
+
+dr_sections: [S11]
+
+# ─── Phase Declarations ─────────────────────────────────────────────
+# Each phase maps to a method file: methods/{NN}-{name}.md
+# Prerequisites enable parallel execution of independent phases.
+
+phases:
+  - id: 1
+    name: "Component Audit"
+    requires_llm: true
+    prerequisites: []        # no dependencies — can start immediately
+
+  - id: 2
+    name: "Colour Contrast"
+    requires_llm: false      # purely accelerator-driven
+    prerequisites: []        # independent of phase 1
+
+  - id: 3
+    name: "Keyboard Navigation"
+    requires_llm: true
+    prerequisites: [1]       # needs component inventory from phase 1
+
+  - id: 4
+    name: "Screen Reader"
+    requires_llm: true
+    prerequisites: [1]       # needs component inventory from phase 1
+
+  - id: 5
+    name: "Motion & Animation"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 6
+    name: "Report"
+    requires_llm: true
+    prerequisites: [1, 2, 3, 4, 5]  # needs all prior phases
+
+# ─── Applicability ──────────────────────────────────────────────────
+# When should the orchestrator activate this instrument?
+# Empty lists = always applicable. Toggles gate on profile booleans.
+
+applicability:
+  languages: []              # language-agnostic
+  platforms: [web, mobile, desktop]  # skip for CLI and embedded
+  toggles: []                # no toggle required — always relevant for UI targets
+
+# ─── Accelerator Tools ──────────────────────────────────────────────
+# External tools that speed up specific phases. Optional — the
+# instrument works without them via LLM-only analysis.
+
+accelerators:
+  - tool: axe-core
+    check: "npx axe-core --version"
+    command: "npx axe-core --exit"
+    phases: [2, 3]
+
+  - tool: lighthouse
+    check: "which lighthouse"
+    command: "lighthouse --output json --only-categories=accessibility"
+    phases: [2, 4]
+
+# ─── Required Files ─────────────────────────────────────────────────
+# Must exist in the instrument directory. Trailing / = directory.
+# The validation tool checks all of these.
+
+required_files:
+  - README.md
+  - config.yaml
+  - instrument.yaml
+  - methods/
+  - checklists/
+  - templates/report-template.md
+  - fixes/README.md
+
+# ─── Profile Fields Consumed ────────────────────────────────────────
+# Dotted paths into project-profile.yaml that this instrument reads.
+
+profile_fields:
+  - paths.source_dirs
+  - conventions.ui_source_dirs
+  - conventions.ux_spec
+  - platforms.targets
+  - exclude
+
+# ─── Instrument Dependencies ────────────────────────────────────────
+# Other instrument IDs that must complete before this one.
+# Empty = no inter-instrument dependencies.
+
+dependencies: []

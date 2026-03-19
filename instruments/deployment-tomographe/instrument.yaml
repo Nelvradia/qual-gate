@@ -1,0 +1,80 @@
+spec_version: "2.0"
+
+# ─── Identity ───────────────────────────────────────────────────────
+id: I07
+name: deployment-tomographe
+version: 1.0.0
+description: >
+  CI/CD and deployment health scanner. Audits pipeline structure, build
+  reproducibility, artifact generation, update mechanisms, rollback
+  capability, and environment parity.
+report_prefix: DP
+
+# ─── DR Mapping ─────────────────────────────────────────────────────
+dr_sections: [S9]
+
+# ─── Phase Declarations ─────────────────────────────────────────────
+phases:
+  - id: 1
+    name: "Pipeline Structure"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 2
+    name: "Build Reproducibility"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 3
+    name: "Artifact & Distribution"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 4
+    name: "Rollback & Recovery"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 5
+    name: "Environment Parity"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 6
+    name: "Release Process"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 7
+    name: "Report"
+    requires_llm: true
+    prerequisites: [1, 2, 3, 4, 5, 6]
+
+# ─── Applicability ──────────────────────────────────────────────────
+applicability:
+  languages: []
+  platforms: []
+  toggles: []
+
+# ─── Accelerator Tools ──────────────────────────────────────────────
+accelerators: []
+
+# ─── Required Files ─────────────────────────────────────────────────
+required_files:
+  - README.md
+  - config.yaml
+  - instrument.yaml
+  - methods/
+  - checklists/
+  - templates/report-template.md
+  - fixes/README.md
+
+# ─── Profile Fields Consumed ────────────────────────────────────────
+profile_fields:
+  - paths.ci_config
+  - paths.compose_files
+  - paths.version_files
+  - paths.operations_docs
+
+# ─── Instrument Dependencies ────────────────────────────────────────
+dependencies: []

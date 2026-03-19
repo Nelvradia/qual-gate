@@ -1,0 +1,85 @@
+spec_version: "2.0"
+
+# ─── Identity ───────────────────────────────────────────────────────
+id: I11
+name: ux-tomographe
+version: 1.0.0
+description: >
+  User experience diagnostic instrument. Scans interface code,
+  interaction patterns, accessibility compliance, personality rendering,
+  cross-platform consistency, and conversation quality.
+report_prefix: UX
+
+# ─── DR Mapping ─────────────────────────────────────────────────────
+dr_sections: [S11]
+
+# ─── Phase Declarations ─────────────────────────────────────────────
+phases:
+  - id: 1
+    name: "Component Inventory"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 2
+    name: "Interaction Patterns"
+    requires_llm: true
+    prerequisites: [1]
+
+  - id: 3
+    name: "Accessibility"
+    requires_llm: true
+    prerequisites: [1]
+
+  - id: 4
+    name: "Personality & Tone"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 5
+    name: "Conversation Quality"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 6
+    name: "Cross-Platform Consistency"
+    requires_llm: true
+    prerequisites: [1]
+
+  - id: 7
+    name: "Progressive Disclosure"
+    requires_llm: true
+    prerequisites: [1]
+
+  - id: 8
+    name: "Report"
+    requires_llm: true
+    prerequisites: [1, 2, 3, 4, 5, 6, 7]
+
+# ─── Applicability ──────────────────────────────────────────────────
+applicability:
+  languages: []
+  platforms: []
+  toggles: []
+
+# ─── Accelerator Tools ──────────────────────────────────────────────
+accelerators: []
+
+# ─── Required Files ─────────────────────────────────────────────────
+required_files:
+  - README.md
+  - config.yaml
+  - instrument.yaml
+  - methods/
+  - checklists/
+  - templates/report-template.md
+  - fixes/README.md
+
+# ─── Profile Fields Consumed ────────────────────────────────────────
+profile_fields:
+  - conventions.ui_source_dirs
+  - conventions.personality_files
+  - conventions.ux_spec
+  - conventions.design_docs
+
+# ─── Instrument Dependencies ────────────────────────────────────────
+dependencies: []
