@@ -145,6 +145,15 @@ pip install pip-autoremove 2>/dev/null && pip-autoremove --leaves 2>/dev/null
 
 # Go
 go mod tidy --diff 2>/dev/null    # shows what would be added/removed
+
+# Lightweight TS/JS import scan (when node_modules not installed)
+# Extract import names from source
+grep -rh 'import.*from\s' ${SOURCE_DIRS} --include='*.ts' --include='*.js' | \
+  sed "s/.*from ['\"]\\([^'\"]*\\)['\"].*/\\1/" | sort -u > /tmp/imports.txt
+# Compare with package.json dependencies
+jq -r '.dependencies // {} | keys[]' package.json | sort > /tmp/declared.txt
+# Declared but not imported (candidates for removal)
+comm -23 /tmp/declared.txt /tmp/imports.txt
 ```
 
 ### Severity Rules

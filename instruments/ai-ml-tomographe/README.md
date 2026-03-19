@@ -231,9 +231,10 @@ grep -rn 'system_prompt\|system_message\|SystemMessage' . --include='*.rs' 2>/de
 # Python
 grep -rn 'system_prompt\|system_message\|SystemMessage' . --include='*.py' 2>/dev/null | wc -l
 
-# Prompt template locations
-find . -name '*.txt' -o -name '*prompt*' -o -name '*template*' 2>/dev/null | \
-  grep -v 'test\|node_modules\|target\|.git'
+# Prompt template locations (multiple naming conventions)
+find ${SOURCE_DIRS} -name '*prompt*' -o -name '*personality*' \
+  -o -name '*system-prompt*' -o -name '*system_prompt*' \
+  -o -name '*guidance*' 2>/dev/null
 
 # Check if prompt changes are version-controlled
 git log --oneline -10 -- '**/prompt*' '**/personality*' 'config/**/prompt*' 2>/dev/null

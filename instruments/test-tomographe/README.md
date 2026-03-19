@@ -86,6 +86,10 @@ jest --listTests 2>/dev/null
 # Node / TypeScript (Vitest)
 vitest list 2>/dev/null
 
+# Colocated test files (common in TypeScript/React projects)
+find ${SOURCE_DIRS} -name '*.test.ts' -o -name '*.spec.ts' \
+  -o -name '*.test.tsx' -o -name '*.spec.tsx' | wc -l
+
 # C++
 find ${TEST_DIRS} -name '*.cpp' | wc -l
 ```
@@ -176,6 +180,11 @@ grep -rn 't\.Error\|t\.Fatal\|require\.\|assert\.' . --include='*_test.go' 2>/de
 
 # Node / TypeScript — assertion keywords (Jest/Vitest)
 grep -rn 'expect(\|toBe(\|toEqual(\|toThrow(\|should\.' . --include='*.test.*' --include='*.spec.*' 2>/dev/null
+
+# Jest / Vitest
+grep -rn 'expect(\|it(\|describe(\|test(' ${TEST_DIRS} --include='*.test.ts' --include='*.spec.ts' | wc -l
+# Node assert
+grep -rn 'assert\.\|assert(' ${TEST_DIRS} --include='*.test.ts' --include='*.test.js' | wc -l
 
 # C++ (Boost.Test)
 grep -rn 'BOOST_TEST\|BOOST_CHECK\|BOOST_REQUIRE' ${TEST_DIRS} --include='*.cpp' | wc -l
@@ -285,6 +294,11 @@ grep -rn 't\.Skip(' . --include='*_test.go' 2>/dev/null
 # Node / TypeScript — skipped tests (Jest/Vitest)
 grep -rn 'xit(\|xtest(\|xdescribe(\|test\.skip(\|it\.skip(' . --include='*.test.*' --include='*.spec.*' 2>/dev/null
 
+# Vitest
+npx vitest run --reporter=verbose 2>/dev/null
+# Jest
+npx jest --verbose 2>/dev/null
+
 # C++ (CMake + CTest)
 cmake --build build/ && ctest --test-dir build/ --output-on-failure
 # C++ (Boost.Build)
@@ -336,12 +350,12 @@ glab api "projects/:id/pipelines?per_page=20&status=failed" 2>/dev/null | jq len
 ```bash
 # Top 20 most-changed source files (last 90 days)
 git log --since="90 days ago" --name-only --pretty=format: | \
-  grep -E '\.(rs|py|go|ts|js|java|kt|cpp|hpp|h|ipp)$' | \
+  grep -E '\.(rs|py|go|ts|tsx|js|jsx|java|kt|cpp|hpp|h|ipp)$' | \
   sort | uniq -c | sort -rn | head -20
 
 # Bug-fix commits and the files they touched
 git log --since="90 days ago" --grep='fix(' --name-only --pretty=format: | \
-  grep -E '\.(rs|py|go|ts|js|java|kt)$' | sort -u | head -20
+  grep -E '\.(rs|py|go|ts|tsx|js|jsx|java|kt|cpp|hpp|h|ipp)$' | sort -u | head -20
 ```
 
 ### Severity Rules
