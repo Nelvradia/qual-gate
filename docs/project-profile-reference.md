@@ -30,6 +30,89 @@ This is sufficient to run all instruments. Paths default to conventions (`src/`,
 
 ---
 
+## Inheritance
+
+Profiles support single-parent inheritance via the `extends` field. A child profile
+inherits all fields from the parent and overrides selectively.
+
+| Field | Type | Required | Default | Consumed By |
+|-------|------|----------|---------|-------------|
+| `extends` | string | no | null | qualitoscope |
+
+### Merge Semantics
+
+| Value Type | Behaviour | Example |
+|------------|-----------|---------|
+| **Scalar** (string, number, bool) | Child overrides parent | `name: child-project` replaces parent's name |
+| **List** | Child **replaces** parent entirely | `languages: [rust]` replaces parent's `[python, go]` |
+| **Object** | Deep merge — child keys override, parent keys preserved | Child adds `paths.db_dir` without losing parent's `paths.source_dirs` |
+| **Toggles** | Child can only **enable**, never disable | Parent `permission_system: true` cannot be set to `false` by child |
+
+### Toggle Safety Rule
+
+A parent profile that enables a toggle establishes a quality floor. Child profiles
+can enable additional toggles but cannot disable inherited ones. Attempting to set
+a parent-enabled toggle to `false` is a validation error.
+
+### Depth Limit
+
+Inheritance chains are limited to **3 levels** (child → parent → grandparent). A
+4th level triggers a validation error. This prevents fragile deep chains and keeps
+profiles easy to reason about.
+
+### Circular Reference Detection
+
+The resolver tracks all visited profile paths. If a path appears twice in the
+resolution chain, it raises a validation error with the full cycle path.
+
+### Examples
+
+**Single-level inheritance:**
+
+```yaml
+# profiles/base.yaml
+name: base-project
+stack:
+  languages: [python, rust]
+toggles:
+  permission_system: true
+
+# project-profile.yaml
+extends: ./profiles/base.yaml
+name: my-project                  # overrides base name
+stack:
+  languages: [python]             # replaces base languages list
+toggles:
+  gdpr_scope: true                # enables additional toggle
+  # permission_system: inherited as true from parent
+```
+
+**Multi-level inheritance:**
+
+```yaml
+# profiles/org-base.yaml
+name: org-default
+stack:
+  languages: [python]
+toggles:
+  permission_system: true
+
+# profiles/team-base.yaml
+extends: ./profiles/org-base.yaml
+stack:
+  languages: [python, typescript]
+toggles:
+  gdpr_scope: true
+
+# project-profile.yaml
+extends: ./profiles/team-base.yaml
+name: my-project
+# Inherits: permission_system=true, gdpr_scope=true, languages=[python, typescript]
+# Can override name, paths, etc.
+```
+
+---
+
 ## identity
 
 Project metadata used in output naming and report headers.
