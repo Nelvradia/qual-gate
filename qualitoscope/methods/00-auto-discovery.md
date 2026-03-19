@@ -21,6 +21,10 @@ If a profile is found, Phase 0 is skipped entirely.
 | Build manifests | Cargo.toml → Rust, pyproject.toml → Python, package.json → TypeScript/JavaScript | Strict |
 | Shebang lines | #!/usr/bin/env python, etc. | Heuristic |
 
+> When no programming language is detected but >50 documentation files
+> (.md, .adoc, .rst) exist, classify as `documentation` project type
+> and downgrade from Critical (halt) to Minor.
+
 ### Step 2 — Build System Detection
 | Signal | Method | Confidence |
 |---|---|---|
@@ -29,6 +33,7 @@ If a profile is found, Phase 0 is skipped entirely.
 | package.json | npm/yarn/pnpm (check lockfile) | Strict |
 | go.mod | go | Strict |
 | CMakeLists.txt | cmake | Strict |
+| build.jam / Jamfile | b2 (Boost.Build) | Strict |
 | Makefile | make | Heuristic |
 
 ### Step 3 — CI Platform Detection
@@ -43,10 +48,15 @@ If a profile is found, Phase 0 is skipped entirely.
 ### Step 4 — Directory Layout Detection
 | Field | Candidates | Confidence |
 |---|---|---|
-| source_dirs | src/, lib/, app/, cmd/, pkg/ | Heuristic (verify non-empty) |
+| source_dirs | src/, lib/, app/, cmd/, pkg/, include/ | Heuristic (verify non-empty) |
 | test_dirs | tests/, test/, spec/, __tests__/ | Heuristic (verify non-empty) |
 | docs_dir | docs/, doc/, documentation/ | Heuristic |
 | config_dir | config/, .config/, conf/ | Heuristic |
+| workspace_members | pnpm-workspace.yaml, package.json[workspaces], Cargo.toml[workspace.members], go.work | Heuristic |
+
+> Also check for colocated test files alongside source files: `*.test.ts`,
+> `*.spec.ts`, `*_test.py`, `*_test.go`, `*_test.cpp` patterns. When found,
+> add the containing directories to `test_dirs` as well.
 
 ### Step 5 — Platform Detection
 | Signal | Method | Confidence |
@@ -56,6 +66,11 @@ If a profile is found, Phase 0 is skipped entirely.
 | tauri.conf.json or src-tauri/ | desktop (Tauri) | Strict |
 | electron-builder.* or electron/ | desktop (Electron) | Strict |
 | Dockerfile or docker-compose.yml | containerised | Strict |
+| fly.toml | paas (Fly.io) | Strict |
+| render.yaml | paas (Render) | Strict |
+| railway.json / railway.toml | paas (Railway) | Strict |
+| Procfile | paas (Heroku) | Heuristic |
+| *.xcodeproj in macos/ context | desktop (macOS native) | Strict |
 
 ### Step 6 — Convention Detection
 LLM reads discovered config files and docs to detect:
@@ -87,4 +102,5 @@ Draft profile includes:
 | No project-profile.yaml and Phase 0 generated one | Observation |
 | Phase 0 could not detect any languages | Critical (halt) |
 | Phase 0 detected languages but no build system | Minor |
+| Phase 0 detected no languages but >50 doc files | Minor |
 | Phase 0 detected conflicting signals | Observation |
