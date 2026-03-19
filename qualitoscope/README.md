@@ -2,7 +2,7 @@
 
 **Pure orchestrator for all qual-gate quality instruments.** Delegates to 13 domain tomographes (under `instruments/`), resolves finding overlaps, cross-correlates across instruments, computes S14 (Overall Summary), produces unified DR reports, and tracks project health trends. Does not perform domain scanning itself — every finding originates from a delegated instrument.
 
-**Covers DR Section:** S14 (Overall Summary — aggregated from all instruments)
+**Covers:** Overall Summary (aggregated from all instruments)
 
 **Delegates to:** All 13 domain instruments covering S1–S13, K1–K4
 
@@ -93,7 +93,7 @@ Phase 1 assumes a validated `project-profile.yaml` exists. If Phase 0 ran and ha
 | I09 | `security-tomographe` | S5 (Security) | `instruments/security-tomographe/` | qual-gate |
 | I10 | `performance-tomographe` | S10 (Performance) | `instruments/performance-tomographe/` | qual-gate |
 | I11 | `ux-tomographe` | S11 (UX) | `instruments/ux-tomographe/` | qual-gate |
-| I12 | `ai-ml-tomographe` | AI/ML Quality (new dimension) | `instruments/ai-ml-tomographe/` | qual-gate |
+| I12 | `ai-ml-tomographe` | S14 (AI/ML Quality) | `instruments/ai-ml-tomographe/` | qual-gate |
 | I13 | `dependency-tomographe` | S12, S5 (Licensing, Supply Chain) | `instruments/dependency-tomographe/` | qual-gate |
 
 ### Steps
@@ -457,7 +457,7 @@ XC-08: Dep update without security scan
 
 **Goal:** Compute the Overall Summary (DR Section S14) from all deduplicated and cross-correlated findings. This is the only DR section that no individual instrument produces — it's the Qualitoscope's unique contribution.
 
-AI-ML findings (from I12) contribute to the composite score but are not mapped to their own DR section. They feed into S5 where relevant (AI threats) and into the overall severity counts.
+AI-ML findings (from I12) map to DR section S14. When `toggles.ai_ml_components` is false, S14 is omitted from DR reports and AI-ML findings are excluded from the composite score.
 
 ### Steps
 
@@ -543,7 +543,7 @@ score = 1.0
 
 **Goal:** Map instrument outputs to DR-TEMPLATE sections, producing a complete Design Review report. This phase is skipped during Quick Scan and Targeted Scan modes.
 
-**Note:** AI-ML (I12) is a supplementary quality dimension — it does not have its own DR section. Its findings feed into S5 (AI threats) and the composite score but AI-ML does not get a section sub-verdict.
+**Note:** AI-ML (I12) maps to DR section S14. When `toggles.ai_ml_components` is false, S14 is omitted from DR reports.
 
 ### DR Section → Instrument Mapping
 
@@ -562,7 +562,8 @@ score = 1.0
 | S11 UX | I11 `ux-tomographe` | — | Components, a11y, personality, flows |
 | S12 Licensing | I05 `compliance-tomographe` | I13 `dependency-tomographe` | Dep licence matrix from I13, policy from I05 |
 | S13 Maintainability | I03 `code-tomographe` | — | Tech debt, complexity scoring |
-| S14 Overall Summary | Phase 5 output | — | Aggregated from all instruments |
+| S14 AI/ML Quality | I12 `ai-ml-tomographe` | — | Prompt quality, eval coverage, RAG accuracy. Conditional: `toggles.ai_ml_components` |
+| Overall Summary | Phase 5 output | — | Aggregated from all instruments (not a numbered DR section) |
 | K1 Permission System | I05 `compliance-tomographe` | I09 `security-tomographe` | Completeness from I05, correctness from I09 |
 | K2 Glossary | I04 `documentation-tomographe` | — | lint_glossary.py results |
 | K3 Design-to-Impl | I04 `documentation-tomographe` | — | Phase 4 delta analysis |
@@ -765,7 +766,7 @@ instruments:
     sections: [S11]
   - id: I12
     name: ai-ml-tomographe
-    sections: [AI-ML]
+    sections: [S14]
   - id: I13
     name: dependency-tomographe
     sections: [S12, S5]
