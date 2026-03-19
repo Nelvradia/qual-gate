@@ -1,0 +1,25 @@
+# Build artifacts
+build/
+dist/
+target/
+*.o
+*.pyc
+__pycache__/
+
+# Dependencies
+node_modules/
+venv/
+.venv/
+
+# Git & IDE
+.git/
+.idea/
+.vscode/
+
+# Generated
+*.min.js
+*.map
+*.lock
+
+# Scan output
+output/

@@ -1,8 +1,7 @@
 ---
 title: "qual-gate — Roadmap to v1.0.0"
-status: draft
-last-updated: 2026-03-18
-version: 0.1.0
+status: current
+last-updated: 2026-03-19
 ---
 
 # qual-gate — Roadmap to v1.0.0
