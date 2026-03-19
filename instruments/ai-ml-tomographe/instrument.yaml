@@ -1,0 +1,83 @@
+spec_version: "2.0"
+
+# ─── Identity ───────────────────────────────────────────────────────
+id: I12
+name: ai-ml-tomographe
+version: 1.0.0
+description: >
+  AI/ML quality scanner. Evaluates LLM extraction quality, RAG retrieval
+  health, golden dataset integrity, prompt regression, model routing
+  accuracy, and confidence calibration.
+report_prefix: AI
+
+# ─── DR Mapping ─────────────────────────────────────────────────────
+dr_sections: [S14]
+
+# ─── Phase Declarations ─────────────────────────────────────────────
+phases:
+  - id: 1
+    name: "Golden Datasets"
+    requires_llm: false
+    prerequisites: []
+
+  - id: 2
+    name: "Extraction Quality"
+    requires_llm: true
+    prerequisites: [1]
+
+  - id: 3
+    name: "RAG Retrieval"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 4
+    name: "Prompt Health"
+    requires_llm: false
+    prerequisites: []
+
+  - id: 5
+    name: "Model Routing"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 6
+    name: "Confidence Calibration"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 7
+    name: "Report"
+    requires_llm: false
+    prerequisites: [1, 2, 3, 4, 5, 6]
+
+# ─── Applicability ──────────────────────────────────────────────────
+applicability:
+  languages: []
+  platforms: []
+  toggles: [ai_ml_components]
+
+# ─── Accelerator Tools ──────────────────────────────────────────────
+accelerators: []
+
+# ─── Required Files ─────────────────────────────────────────────────
+required_files:
+  - README.md
+  - config.yaml
+  - instrument.yaml
+  - methods/
+  - checklists/
+  - templates/report-template.md
+  - fixes/README.md
+
+# ─── Profile Fields Consumed ────────────────────────────────────────
+profile_fields:
+  - conventions.golden_dir
+  - conventions.rag_eval_dir
+  - conventions.routing_dataset
+  - conventions.eval_script
+  - conventions.personality_files
+  - platforms.vector_store_url
+  - paths.source_dirs
+
+# ─── Instrument Dependencies ────────────────────────────────────────
+dependencies: []

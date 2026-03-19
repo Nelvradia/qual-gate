@@ -1,0 +1,84 @@
+spec_version: "2.0"
+
+# ─── Identity ───────────────────────────────────────────────────────
+id: I10
+name: performance-tomographe
+version: 1.0.0
+description: >
+  Performance profiling and baseline scanner. Measures latency, memory,
+  VRAM usage, database performance, throughput, and context assembly
+  timing for regression detection and budget decomposition.
+report_prefix: PS
+
+# ─── DR Mapping ─────────────────────────────────────────────────────
+dr_sections: [S10]
+
+# ─── Phase Declarations ─────────────────────────────────────────────
+phases:
+  - id: 1
+    name: "Architecture Profiling"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 2
+    name: "Database Analysis"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 3
+    name: "Latency Baseline"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 4
+    name: "Memory & VRAM"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 5
+    name: "Throughput & Concurrency"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 6
+    name: "Context Assembly"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 7
+    name: "Startup & Cold Path"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 8
+    name: "Report"
+    requires_llm: true
+    prerequisites: [1, 2, 3, 4, 5, 6, 7]
+
+# ─── Applicability ──────────────────────────────────────────────────
+applicability:
+  languages: []
+  platforms: []
+  toggles: []
+
+# ─── Accelerator Tools ──────────────────────────────────────────────
+accelerators: []
+
+# ─── Required Files ─────────────────────────────────────────────────
+required_files:
+  - README.md
+  - config.yaml
+  - instrument.yaml
+  - methods/
+  - checklists/
+  - templates/report-template.md
+  - fixes/README.md
+
+# ─── Profile Fields Consumed ────────────────────────────────────────
+profile_fields:
+  - paths.source_dirs
+  - paths.compose_files
+  - platforms.service_url
+
+# ─── Instrument Dependencies ────────────────────────────────────────
+dependencies: []
