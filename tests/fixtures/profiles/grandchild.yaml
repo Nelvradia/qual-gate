@@ -1,0 +1,3 @@
+extends: ./child.yaml
+name: grandchild-project
+version: "2.0.0"

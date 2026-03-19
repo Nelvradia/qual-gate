@@ -1,0 +1,4 @@
+extends: ./base.yaml
+name: toggle-violation-project
+toggles:
+  permission_system: false
