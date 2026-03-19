@@ -1,0 +1,82 @@
+spec_version: "2.0"
+
+# ─── Identity ───────────────────────────────────────────────────────
+id: I05
+name: compliance-tomographe
+version: 1.0.0
+description: >
+  Compliance and legal scanner. Audits license compatibility,
+  configuration management, access control completeness, GDPR readiness,
+  AI Act preparedness, and export control.
+report_prefix: CL
+
+# ─── DR Mapping ─────────────────────────────────────────────────────
+dr_sections: [S6, S12, K1]
+
+# ─── Phase Declarations ─────────────────────────────────────────────
+phases:
+  - id: 1
+    name: "License Audit"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 2
+    name: "Configuration Management"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 3
+    name: "Access Control Coverage"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 4
+    name: "GDPR Readiness"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 5
+    name: "AI Act Readiness"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 6
+    name: "Export Control"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 7
+    name: "Report"
+    requires_llm: true
+    prerequisites: [1, 2, 3, 4, 5, 6]
+
+# ─── Applicability ──────────────────────────────────────────────────
+applicability:
+  languages: []
+  platforms: []
+  toggles: [permission_system]
+
+# ─── Accelerator Tools ──────────────────────────────────────────────
+accelerators: []
+
+# ─── Required Files ─────────────────────────────────────────────────
+required_files:
+  - README.md
+  - config.yaml
+  - instrument.yaml
+  - methods/
+  - checklists/
+  - templates/report-template.md
+  - fixes/README.md
+
+# ─── Profile Fields Consumed ────────────────────────────────────────
+profile_fields:
+  - conventions.access_control_config
+  - conventions.component_manifest
+  - conventions.boundary_tests
+  - paths.config_dir
+  - conventions.business_docs
+  - paths.source_dirs
+
+# ─── Instrument Dependencies ────────────────────────────────────────
+dependencies: []
