@@ -1,4 +1,13 @@
-# Auto-Generated Fix Suggestions
+---
+title: "Observability Tomographe — Fix Guide Index"
+status: current
+last-updated: 2026-03-19
+---
 
-This directory is populated by the scanner when it finds auto-fixable issues.
-Review all suggestions before applying.
+# Observability Tomographe — Fix Guide Index
+
+| Finding Category | File | Severity Range |
+|---|---|---|
+| Missing Metrics | [missing-metrics.md](missing-metrics.md) | Major |
+| Poor Log Quality | [poor-log-quality.md](poor-log-quality.md) | Minor–Major |
+| Missing Alerting | [missing-alerting.md](missing-alerting.md) | Major |
