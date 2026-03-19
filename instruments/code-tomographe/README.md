@@ -78,6 +78,15 @@ npx tsc --noEmit 2>&1 | tee output/YYYY-MM-DD_{project_name}/scratch/code-tomogr
 
 # Kotlin (if ktlint is available)
 ./gradlew ktlintCheck 2>&1 | tee output/YYYY-MM-DD_{project_name}/scratch/code-tomographe/ktlint.txt
+
+# C++ (if clang-format is available)
+find ${SOURCE_DIRS} -name '*.cpp' -o -name '*.hpp' -o -name '*.h' | \
+  xargs clang-format --dry-run --Werror 2>&1 | head -20
+# C++ (if clang-tidy is available)
+find ${SOURCE_DIRS} -name '*.cpp' | head -10 | \
+  xargs clang-tidy 2>&1 | grep -c 'warning:\|error:'
+# C++ (if cppcheck is available)
+cppcheck --enable=all --quiet ${SOURCE_DIRS} 2>&1 | head -30
 ```
 
 ### Severity Rules
@@ -126,6 +135,10 @@ gocyclo ./...
 
 # JavaScript/TypeScript (if Node is available)
 npx complexity-report ${SOURCE_DIRS}
+
+# C++
+grep -rn '^[a-zA-Z].*(' ${SOURCE_DIRS} --include='*.cpp' --include='*.hpp' | \
+  grep -v '^\s*//' | wc -l
 ```
 
 ### Complexity Checklist
@@ -174,6 +187,9 @@ vulture ${SOURCE_DIRS}
 
 # TypeScript (if ts-prune is available)
 npx ts-prune
+
+# C++ (if cppcheck is available)
+cppcheck --enable=unusedFunction ${SOURCE_DIRS} 2>&1
 ```
 
 ### Severity Rules

@@ -62,6 +62,7 @@ Replace all `src/` references in accelerator commands below with
    - Files named `*.test.ts`, `*.spec.ts`, `*.test.js` (Node/TypeScript)
    - Files named `*Test.java`, `*Test.kt`, `*Spec.kt` (Java/Kotlin)
    - Files with `#[cfg(test)] mod tests` blocks (Rust)
+   - Files named `test/*.cpp`, `test_*.cpp`, `*_test.cpp` (C++ — GTest, Catch2, Boost.Test, CTest)
    - Files under `tests/`, `spec/`, `__tests__/`, `test/` directories
    - Files with `describe(`, `it(`, `test(` calls (JavaScript frameworks)
 2. Categorise tests by layer: unit (isolated, no I/O), integration (multiple components, real interfaces), e2e (full system)
@@ -84,6 +85,9 @@ jest --listTests 2>/dev/null
 
 # Node / TypeScript (Vitest)
 vitest list 2>/dev/null
+
+# C++
+find ${TEST_DIRS} -name '*.cpp' | wc -l
 ```
 
 ### Deliverables
@@ -172,6 +176,13 @@ grep -rn 't\.Error\|t\.Fatal\|require\.\|assert\.' . --include='*_test.go' 2>/de
 
 # Node / TypeScript — assertion keywords (Jest/Vitest)
 grep -rn 'expect(\|toBe(\|toEqual(\|toThrow(\|should\.' . --include='*.test.*' --include='*.spec.*' 2>/dev/null
+
+# C++ (Boost.Test)
+grep -rn 'BOOST_TEST\|BOOST_CHECK\|BOOST_REQUIRE' ${TEST_DIRS} --include='*.cpp' | wc -l
+# C++ (Google Test)
+grep -rn 'EXPECT_\|ASSERT_\|TEST_F\|TEST(' ${TEST_DIRS} --include='*.cpp' | wc -l
+# C++ (Catch2)
+grep -rn 'REQUIRE\|CHECK\|TEST_CASE\|SECTION' ${TEST_DIRS} --include='*.cpp' | wc -l
 ```
 
 ### Thresholds
@@ -274,6 +285,11 @@ grep -rn 't\.Skip(' . --include='*_test.go' 2>/dev/null
 # Node / TypeScript — skipped tests (Jest/Vitest)
 grep -rn 'xit(\|xtest(\|xdescribe(\|test\.skip(\|it\.skip(' . --include='*.test.*' --include='*.spec.*' 2>/dev/null
 
+# C++ (CMake + CTest)
+cmake --build build/ && ctest --test-dir build/ --output-on-failure
+# C++ (Boost.Build)
+b2 test
+
 # CI pass/fail counts (GitLab)
 glab api "projects/:id/pipelines?per_page=20&status=success" 2>/dev/null | jq length
 glab api "projects/:id/pipelines?per_page=20&status=failed" 2>/dev/null | jq length
@@ -320,7 +336,7 @@ glab api "projects/:id/pipelines?per_page=20&status=failed" 2>/dev/null | jq len
 ```bash
 # Top 20 most-changed source files (last 90 days)
 git log --since="90 days ago" --name-only --pretty=format: | \
-  grep -E '\.(rs|py|go|ts|js|java|kt)$' | \
+  grep -E '\.(rs|py|go|ts|js|java|kt|cpp|hpp|h|ipp)$' | \
   sort | uniq -c | sort -rn | head -20
 
 # Bug-fix commits and the files they touched

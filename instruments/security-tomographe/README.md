@@ -74,7 +74,14 @@ done > output/YYYY-MM-DD_{project_name}/scratch/security/trivy-raw.json
 # If trivy unavailable, check image pinning:
 grep 'image:' docker-compose.yml | grep -v 'sha256' | head -20
 # Images without digest pinning = finding
+
+# C++ (if cppcheck is available)
+cppcheck --enable=all --suppress=missingInclude ${SOURCE_DIRS} 2>&1 | grep -i 'security\|overflow\|injection'
 ```
+
+> **Note:** C++ routinely uses casts and raw pointers. Flag `reinterpret_cast`
+> and `void*` arithmetic but treat as Observation unless in security-critical
+> paths.
 
 ### Severity Rules
 

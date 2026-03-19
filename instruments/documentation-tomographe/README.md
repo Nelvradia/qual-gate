@@ -62,6 +62,9 @@ grep -rn '///\|"""\|#\s' ${SOURCE_DIRS} --include='*.rs' --include='*.py' | wc -
 # vs public items:
 grep -rn 'pub fn \|pub struct \|pub enum \|pub trait \|def \|class ' ${SOURCE_DIRS} --include='*.rs' --include='*.py' | wc -l
 
+# C++ Doxygen comments (/** */, //!, ///)
+grep -rn '///\|//!\|/\*\*' ${SOURCE_DIRS} --include='*.cpp' --include='*.hpp' --include='*.h' | wc -l
+
 # ADR count
 find .claude/decisions/ -name '*.md' 2>/dev/null | wc -l
 
