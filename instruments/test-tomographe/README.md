@@ -30,7 +30,27 @@
 
 ---
 
+## Path Resolution
+
+Before running any phase, resolve these paths from the target project's
+`project-profile.yaml`. Use defaults when profile fields are absent.
+
+| Variable | Profile Field | Default |
+|----------|--------------|---------|
+| `SOURCE_DIRS` | `paths.source_dirs` | `src/` |
+| `TEST_DIRS` | `paths.test_dirs` | `tests/` |
+| `DOCS_DIR` | `paths.docs_dir` | `docs/` |
+
+Replace all `src/` references in accelerator commands below with
+`${SOURCE_DIRS}`.
+
+---
+
 ## Phase 1 — Inventory
+
+> **Prerequisite:** This phase requires test directories or colocated test
+> files. When absent, emit `Observation: "test-tomographe Phase 1 skipped —
+> no test files found"` and proceed to Phase 2.
 
 **Goal:** Build a complete inventory of all tests by language, module, and type.
 
@@ -42,6 +62,7 @@
    - Files named `*.test.ts`, `*.spec.ts`, `*.test.js` (Node/TypeScript)
    - Files named `*Test.java`, `*Test.kt`, `*Spec.kt` (Java/Kotlin)
    - Files with `#[cfg(test)] mod tests` blocks (Rust)
+   - Files named `test/*.cpp`, `test_*.cpp`, `*_test.cpp` (C++ — GTest, Catch2, Boost.Test, CTest)
    - Files under `tests/`, `spec/`, `__tests__/`, `test/` directories
    - Files with `describe(`, `it(`, `test(` calls (JavaScript frameworks)
 2. Categorise tests by layer: unit (isolated, no I/O), integration (multiple components, real interfaces), e2e (full system)
@@ -64,6 +85,13 @@ jest --listTests 2>/dev/null
 
 # Node / TypeScript (Vitest)
 vitest list 2>/dev/null
+
+# Colocated test files (common in TypeScript/React projects)
+find ${SOURCE_DIRS} -name '*.test.ts' -o -name '*.spec.ts' \
+  -o -name '*.test.tsx' -o -name '*.spec.tsx' | wc -l
+
+# C++
+find ${TEST_DIRS} -name '*.cpp' | wc -l
 ```
 
 ### Deliverables
@@ -152,6 +180,18 @@ grep -rn 't\.Error\|t\.Fatal\|require\.\|assert\.' . --include='*_test.go' 2>/de
 
 # Node / TypeScript — assertion keywords (Jest/Vitest)
 grep -rn 'expect(\|toBe(\|toEqual(\|toThrow(\|should\.' . --include='*.test.*' --include='*.spec.*' 2>/dev/null
+
+# Jest / Vitest
+grep -rn 'expect(\|it(\|describe(\|test(' ${TEST_DIRS} --include='*.test.ts' --include='*.spec.ts' | wc -l
+# Node assert
+grep -rn 'assert\.\|assert(' ${TEST_DIRS} --include='*.test.ts' --include='*.test.js' | wc -l
+
+# C++ (Boost.Test)
+grep -rn 'BOOST_TEST\|BOOST_CHECK\|BOOST_REQUIRE' ${TEST_DIRS} --include='*.cpp' | wc -l
+# C++ (Google Test)
+grep -rn 'EXPECT_\|ASSERT_\|TEST_F\|TEST(' ${TEST_DIRS} --include='*.cpp' | wc -l
+# C++ (Catch2)
+grep -rn 'REQUIRE\|CHECK\|TEST_CASE\|SECTION' ${TEST_DIRS} --include='*.cpp' | wc -l
 ```
 
 ### Thresholds
@@ -190,12 +230,12 @@ grep -rn 'expect(\|toBe(\|toEqual(\|toThrow(\|should\.' . --include='*.test.*' -
 ```bash
 # List all source files alongside test files to check naming alignment
 # Rust
-find src/ -name '*.rs' ! -name 'mod.rs' | sort
-find tests/ -name '*.rs' | sort
+find ${SOURCE_DIRS} -name '*.rs' ! -name 'mod.rs' | sort
+find ${TEST_DIRS} -name '*.rs' | sort
 
 # Python
-find src/ -name '*.py' ! -name '__init__.py' | sort
-find tests/ -name 'test_*.py' | sort
+find ${SOURCE_DIRS} -name '*.py' ! -name '__init__.py' | sort
+find ${TEST_DIRS} -name 'test_*.py' | sort
 
 # Go
 find . -name '*.go' ! -name '*_test.go' | sort
@@ -226,6 +266,10 @@ find . -name '*_test.go' | sort
 
 ## Phase 5 — Health
 
+> **Prerequisite:** This phase requires a CI configuration file. When absent,
+> emit `Observation: "test-tomographe Phase 5 skipped — no CI configuration
+> found"` and proceed to Phase 6.
+
 **Goal:** Assess CI reliability and test suite operational health.
 
 ### LLM steps
@@ -249,6 +293,16 @@ grep -rn 't\.Skip(' . --include='*_test.go' 2>/dev/null
 
 # Node / TypeScript — skipped tests (Jest/Vitest)
 grep -rn 'xit(\|xtest(\|xdescribe(\|test\.skip(\|it\.skip(' . --include='*.test.*' --include='*.spec.*' 2>/dev/null
+
+# Vitest
+npx vitest run --reporter=verbose 2>/dev/null
+# Jest
+npx jest --verbose 2>/dev/null
+
+# C++ (CMake + CTest)
+cmake --build build/ && ctest --test-dir build/ --output-on-failure
+# C++ (Boost.Build)
+b2 test
 
 # CI pass/fail counts (GitLab)
 glab api "projects/:id/pipelines?per_page=20&status=success" 2>/dev/null | jq length
@@ -278,6 +332,10 @@ glab api "projects/:id/pipelines?per_page=20&status=failed" 2>/dev/null | jq len
 
 ## Phase 6 — Regression Risk
 
+> **Prerequisite:** This phase requires git history with ≥2 commits. When
+> absent, emit `Observation: "test-tomographe Phase 6 skipped — insufficient
+> git history"` and proceed to Phase 7.
+
 **Goal:** Identify high-churn files with low test density — the riskiest code.
 
 ### LLM steps
@@ -292,12 +350,12 @@ glab api "projects/:id/pipelines?per_page=20&status=failed" 2>/dev/null | jq len
 ```bash
 # Top 20 most-changed source files (last 90 days)
 git log --since="90 days ago" --name-only --pretty=format: | \
-  grep -E '\.(rs|py|go|ts|js|java|kt)$' | \
+  grep -E '\.(rs|py|go|ts|tsx|js|jsx|java|kt|cpp|hpp|h|ipp)$' | \
   sort | uniq -c | sort -rn | head -20
 
 # Bug-fix commits and the files they touched
 git log --since="90 days ago" --grep='fix(' --name-only --pretty=format: | \
-  grep -E '\.(rs|py|go|ts|js|java|kt)$' | sort -u | head -20
+  grep -E '\.(rs|py|go|ts|tsx|js|jsx|java|kt|cpp|hpp|h|ipp)$' | sort -u | head -20
 ```
 
 ### Severity Rules

@@ -74,7 +74,14 @@ done > output/YYYY-MM-DD_{project_name}/scratch/security/trivy-raw.json
 # If trivy unavailable, check image pinning:
 grep 'image:' docker-compose.yml | grep -v 'sha256' | head -20
 # Images without digest pinning = finding
+
+# C++ (if cppcheck is available)
+cppcheck --enable=all --suppress=missingInclude ${SOURCE_DIRS} 2>&1 | grep -i 'security\|overflow\|injection'
 ```
+
+> **Note:** C++ routinely uses casts and raw pointers. Flag `reinterpret_cast`
+> and `void*` arithmetic but treat as Observation unless in security-critical
+> paths.
 
 ### Severity Rules
 
@@ -193,6 +200,13 @@ grep -rn 'bearer\|jwt\|token\|auth' src/api/ --include='*.rs' --include='*.py' |
 
 # Rate limiting
 grep -rn 'rate_limit\|throttle\|RateLimit\|slowapi\|governor' src/ --include='*.rs' --include='*.py'
+
+# TypeScript/Node (Express/Fastify)
+grep -rn 'app\.\(get\|post\|put\|delete\|patch\|use\)\|router\.\(get\|post\|put\|delete\)' \
+  ${SOURCE_DIRS} --include='*.ts' --include='*.js' | wc -l
+# WebSocket endpoints
+grep -rn 'WebSocket\|ws\.\(on\|send\)\|socket\.\(on\|emit\)' \
+  ${SOURCE_DIRS} --include='*.ts' --include='*.js' | wc -l
 ```
 
 ### Checklist
@@ -361,10 +375,14 @@ grep -A20 'environment:' docker-compose.yml | grep -i 'password\|secret\|key\|to
 
 ```bash
 # Input sanitization — Rust
-grep -rn 'sanitiz\|clean_input\|strip_injection\|input_validator' src/ --include='*.rs'
+grep -rn 'sanitiz\|clean_input\|strip_injection\|input_validator\|external.content\|prompt.inject\|guardrail\|content.filter\|moderation' src/ --include='*.rs'
 
 # Input sanitization — Python
-grep -rn 'sanitiz\|clean_input\|strip_injection\|input_validator' src/ --include='*.py'
+grep -rn 'sanitiz\|clean_input\|strip_injection\|input_validator\|external.content\|prompt.inject\|guardrail\|content.filter\|moderation' src/ --include='*.py'
+
+# Input sanitization — TypeScript
+grep -rn 'sanitiz\|clean_input\|strip_injection\|external.content\|prompt.inject\|guardrail\|content.filter\|moderation' \
+  ${SOURCE_DIRS} --include='*.ts' --include='*.js'
 
 # Output validation — Rust
 grep -rn 'output_validat\|validate_response\|check_output' src/ --include='*.rs'

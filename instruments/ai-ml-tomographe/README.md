@@ -29,7 +29,64 @@
 
 ---
 
+## Path Resolution
+
+Before running any phase, resolve these paths from the target project's
+`project-profile.yaml`. Use defaults when profile fields are absent.
+
+| Variable | Profile Field | Default |
+|----------|--------------|---------|
+| `SOURCE_DIRS` | `paths.source_dirs` | `src/` |
+| `TEST_DIRS` | `paths.test_dirs` | `tests/` |
+| `DOCS_DIR` | `paths.docs_dir` | `docs/` |
+
+Replace all `src/` references in accelerator commands below with
+`${SOURCE_DIRS}`.
+
+---
+
+## Phase 0.5 — Project Type Classification
+
+Before running domain-specific phases, classify the AI project type to
+determine which phases are applicable.
+
+> **This phase always runs when `toggles.ai_ml_components` is true.**
+
+### Classification Heuristic
+
+| Type | Key Signals | Applicable Phases |
+|------|-------------|-------------------|
+| Training pipeline | training scripts, dataset dirs, model checkpoints, torch/transformers imports | 1-7 (all) |
+| Inference service | model loading, prediction endpoints, batch processing | 1, 2, 4, 5, 6 |
+| AI gateway/orchestrator | multi-provider routing (openai + anthropic + ollama), prompt construction, no model training | 4, 5 |
+| Agent framework | tool definitions, system prompts, conversation management, MCP | 4, 5, 7 |
+| RAG application | vector store, embedding pipeline, retrieval + generation | 1, 3, 4, 5 |
+
+### Detection Commands
+
+```bash
+# Training signals
+find . -name 'train*.py' -o -name 'fine_tune*' -o -name 'checkpoints/' | head -5
+grep -rl 'model\.train\|model\.fit\|Trainer(' ${SOURCE_DIRS} --include='*.py' | head -5
+
+# Gateway signals
+grep -rl 'openai\|anthropic\|ollama' package.json pyproject.toml 2>/dev/null | head -5
+grep -rl 'model.selection\|model.routing\|provider' ${SOURCE_DIRS} | head -10
+
+# RAG signals
+grep -rl 'vector.*store\|embedding\|retriev\|qdrant\|pinecone\|chroma' ${SOURCE_DIRS} | head -5
+```
+
+Emit: `Observation: "AI project classified as [TYPE]. Phases [X, Y] applicable; phases [A, B] skipped."`
+
+---
+
 ## Phase 1 — Golden Datasets (No LLM Required)
+
+> **Prerequisite:** This phase requires classification: training, inference,
+> or RAG. Also requires `profile.conventions.golden_dir`.
+> When absent, emit `Observation: "ai-ml-tomographe Phase 1 skipped — no
+> golden dataset directory configured"` and proceed to Phase 2.
 
 **Goal:** Validate the integrity of evaluation datasets.
 
@@ -85,6 +142,11 @@ echo "Target minimums: corrections>=50, summaries>=30, classifications>=40, temp
 
 ## Phase 2 — Extraction Quality (LLM Required)
 
+> **Prerequisite:** This phase requires classification: training or inference.
+> Also requires golden dataset from Phase 1. When absent, emit `Observation:
+> "ai-ml-tomographe Phase 2 skipped — no golden dataset available"` and
+> proceed to Phase 3.
+
 **Goal:** Measure accuracy of LLM extractions against golden datasets.
 
 ### LLM steps
@@ -124,6 +186,11 @@ fi
 ---
 
 ## Phase 3 — RAG Retrieval (LLM Required)
+
+> **Prerequisite:** This phase requires classification: RAG. Also requires
+> `profile.conventions.rag_eval_dir`. When absent, emit `Observation:
+> "ai-ml-tomographe Phase 3 skipped — no RAG evaluation directory configured"`
+> and proceed to Phase 4.
 
 **Goal:** Evaluate semantic search quality.
 
@@ -203,9 +270,10 @@ grep -rn 'system_prompt\|system_message\|SystemMessage' . --include='*.rs' 2>/de
 # Python
 grep -rn 'system_prompt\|system_message\|SystemMessage' . --include='*.py' 2>/dev/null | wc -l
 
-# Prompt template locations
-find . -name '*.txt' -o -name '*prompt*' -o -name '*template*' 2>/dev/null | \
-  grep -v 'test\|node_modules\|target\|.git'
+# Prompt template locations (multiple naming conventions)
+find ${SOURCE_DIRS} -name '*prompt*' -o -name '*personality*' \
+  -o -name '*system-prompt*' -o -name '*system_prompt*' \
+  -o -name '*guidance*' 2>/dev/null
 
 # Check if prompt changes are version-controlled
 git log --oneline -10 -- '**/prompt*' '**/personality*' 'config/**/prompt*' 2>/dev/null
@@ -262,6 +330,11 @@ fi
 ---
 
 ## Phase 6 — Confidence Calibration (LLM Required)
+
+> **Prerequisite:** This phase requires classification: training or inference.
+> Also requires ≥100 production data points. When absent, emit `Observation:
+> "ai-ml-tomographe Phase 6 skipped — insufficient calibration data"` and
+> proceed to Phase 7.
 
 **Goal:** Verify that confidence scores match actual correctness rates.
 

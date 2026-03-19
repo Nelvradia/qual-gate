@@ -29,22 +29,41 @@
 
 ---
 
+## Path Resolution
+
+Before running any phase, resolve these paths from the target project's
+`project-profile.yaml`. Use defaults when profile fields are absent.
+
+| Variable | Profile Field | Default |
+|----------|--------------|---------|
+| `SOURCE_DIRS` | `paths.source_dirs` | `src/` |
+| `TEST_DIRS` | `paths.test_dirs` | `tests/` |
+| `DOCS_DIR` | `paths.docs_dir` | `docs/` |
+
+Replace all `src/` references in accelerator commands below with
+`${SOURCE_DIRS}`.
+
+---
+
 ## Phase 1 — Inventory
 
 **Goal:** Complete map of all documentation.
 
 ```bash
-# All markdown files
-find docs/ -name '*.md' | wc -l
-find docs/ -name '*.md' | sed 's|/[^/]*$||' | sort | uniq -c | sort -rn
+# All documentation files (Markdown + AsciiDoc)
+find ${DOCS_DIR} -name '*.md' -o -name '*.adoc' -o -name '*.asciidoc' | wc -l
+find ${DOCS_DIR} -name '*.md' -o -name '*.adoc' -o -name '*.asciidoc' | sed 's|/[^/]*$||' | sort | uniq -c | sort -rn
 
 # READMEs across the project
 find . -name 'README.md' -not -path '*/node_modules/*' -not -path '*/target/*' | sort
 
 # Inline doc coverage
-grep -rn '///\|"""\|#\s' src/ --include='*.rs' --include='*.py' | wc -l
+grep -rn '///\|"""\|#\s' ${SOURCE_DIRS} --include='*.rs' --include='*.py' | wc -l
 # vs public items:
-grep -rn 'pub fn \|pub struct \|pub enum \|pub trait \|def \|class ' src/ --include='*.rs' --include='*.py' | wc -l
+grep -rn 'pub fn \|pub struct \|pub enum \|pub trait \|def \|class ' ${SOURCE_DIRS} --include='*.rs' --include='*.py' | wc -l
+
+# C++ Doxygen comments (/** */, //!, ///)
+grep -rn '///\|//!\|/\*\*' ${SOURCE_DIRS} --include='*.cpp' --include='*.hpp' --include='*.h' | wc -l
 
 # ADR count
 find .claude/decisions/ -name '*.md' 2>/dev/null | wc -l
@@ -53,8 +72,13 @@ find .claude/decisions/ -name '*.md' 2>/dev/null | wc -l
 find docs/operations/ -name '*.md' 2>/dev/null | wc -l
 
 # Frontmatter check (docs should have structured frontmatter)
-for f in $(find docs/ -name '*.md'); do
+for f in $(find ${DOCS_DIR} -name '*.md'); do
   head -1 "$f" 2>/dev/null | grep -q '^---' || echo "NO_FRONTMATTER: $f"
+done 2>/dev/null
+
+# AsciiDoc attribute check (:revdate:, :author:, :version: as frontmatter equivalent)
+for f in $(find ${DOCS_DIR} -name '*.adoc' -o -name '*.asciidoc' 2>/dev/null); do
+  grep -q ':revdate:\|:author:\|:version:' "$f" 2>/dev/null || echo "NO_ATTRIBUTES: $f"
 done 2>/dev/null
 ```
 
@@ -80,23 +104,23 @@ done 2>/dev/null
 
 ```bash
 # Last modification date per doc
-for f in $(find docs/ -name '*.md'); do
+for f in $(find ${DOCS_DIR} -name '*.md' -o -name '*.adoc' -o -name '*.asciidoc'); do
   mod=$(git log -1 --format="%ai" -- "$f" 2>/dev/null | cut -d' ' -f1)
   echo "$mod $f"
 done | sort
 
 # Docs not touched in >90 days
 CUTOFF=$(date -d '90 days ago' +%s 2>/dev/null || date -v-90d +%s)
-for f in $(find docs/ -name '*.md'); do
+for f in $(find ${DOCS_DIR} -name '*.md' -o -name '*.adoc' -o -name '*.asciidoc'); do
   mod=$(git log -1 --format="%at" -- "$f" 2>/dev/null)
   if [ -n "$mod" ] && [ "$mod" -lt "$CUTOFF" ]; then
     echo "STALE: $f (last modified $(git log -1 --format='%ar' -- "$f"))"
   fi
 done
 
-# Frontmatter last-updated field vs git timestamp
-for f in $(find docs/ -name '*.md'); do
-  declared=$(grep 'last-updated:' "$f" 2>/dev/null | head -1 | awk '{print $2}')
+# Frontmatter last-updated field vs git timestamp (Markdown YAML + AsciiDoc :revdate:)
+for f in $(find ${DOCS_DIR} -name '*.md' -o -name '*.adoc' -o -name '*.asciidoc'); do
+  declared=$(grep 'last-updated:\|:revdate:' "$f" 2>/dev/null | head -1 | sed 's/.*: *//')
   actual=$(git log -1 --format="%ai" -- "$f" 2>/dev/null | cut -d' ' -f1)
   if [ -n "$declared" ] && [ "$declared" != "$actual" ]; then
     echo "MISMATCH: $f — frontmatter says $declared, git says $actual"
@@ -125,25 +149,32 @@ done 2>/dev/null
 
 ```bash
 # Extract all markdown links from docs
-grep -rn '\[.*\](.*\.md' docs/ --include='*.md' | \
+grep -rn '\[.*\](.*\.md' ${DOCS_DIR} --include='*.md' | \
   sed 's/.*(\(.*\.md[^)]*\)).*/\1/' | sort -u | while read link; do
   # Resolve relative path
   # Check if file exists
-  if [ ! -f "docs/$link" ] && [ ! -f "$link" ]; then
+  if [ ! -f "${DOCS_DIR}/$link" ] && [ ! -f "$link" ]; then
     echo "BROKEN: $link"
   fi
 done
 
+# Extract AsciiDoc cross-references (xref:, <<...>>, include::)
+grep -rn 'xref:\|<<.*>>\|include::' ${DOCS_DIR} --include='*.adoc' --include='*.asciidoc' | \
+  sed 's/.*xref:\([^[]*\).*/\1/; s/.*<<\([^,>]*\).*/\1/; s/.*include::\([^[]*\).*/\1/' | \
+  sort -u | while read ref; do
+  [ -f "${DOCS_DIR}/$ref" ] || [ -f "$ref" ] || echo "BROKEN_XREF: $ref"
+done 2>/dev/null
+
 # Check cross-references in frontmatter
-grep -rn 'related:\|not-here:\|parent:' docs/ --include='*.md' | \
-  grep '\.md' | sed 's/.*→ \(.*\.md\).*/\1/' | sort -u | while read ref; do
-  find docs/ -name "$(basename "$ref")" | grep -q . || echo "BROKEN_REF: $ref"
+grep -rn 'related:\|not-here:\|parent:' ${DOCS_DIR} --include='*.md' --include='*.adoc' | \
+  grep '\.md\|\.adoc' | sed 's/.*→ \(.*\.\(md\|adoc\)\).*/\1/' | sort -u | while read ref; do
+  find ${DOCS_DIR} -name "$(basename "$ref")" | grep -q . || echo "BROKEN_REF: $ref"
 done 2>/dev/null
 
 # Orphan docs (not referenced from any other doc)
-for f in $(find docs/ -name '*.md' -not -name '00-index.md'); do
+for f in $(find ${DOCS_DIR} -name '*.md' -o -name '*.adoc' -o -name '*.asciidoc' | grep -v '00-index.md'); do
   base=$(basename "$f")
-  refs=$(grep -rl "$base" docs/ --include='*.md' | wc -l)
+  refs=$(grep -rl "$base" ${DOCS_DIR} --include='*.md' --include='*.adoc' --include='*.asciidoc' | wc -l)
   if [ "$refs" -eq 0 ]; then
     echo "ORPHAN: $f (not referenced from any other doc)"
   fi
@@ -155,12 +186,17 @@ done 2>/dev/null | head -20
 | Finding | Severity |
 |---------|----------|
 | Broken link in architecture or operations doc | **Minor** |
+| Missing frontmatter (Markdown) or document attributes (AsciiDoc) | **Minor** |
 | Orphan doc (not referenced anywhere) | **Observation** |
 | Broken frontmatter cross-reference | **Observation** |
 
 ---
 
 ## Phase 4 — Design-to-Impl Delta (K3)
+
+> **Prerequisite:** This phase requires `profile.conventions.design_docs`.
+> When absent, emit `Observation: "documentation-tomographe Phase 4 skipped —
+> no design docs path configured"` and proceed to Phase 5.
 
 **Goal:** For each implemented feature, compare design spec to actual code.
 
@@ -202,6 +238,11 @@ done 2>/dev/null
 
 ## Phase 5 — Glossary Compliance (K2)
 
+> **Prerequisite:** This phase requires glossary terms file or source
+> directories. When absent, emit `Observation: "documentation-tomographe
+> Phase 5 skipped — no glossary terms or source directories found"` and
+> proceed to Phase 6.
+
 **Goal:** Verify the codebase uses canonical terminology consistently.
 
 ```bash
@@ -209,13 +250,13 @@ done 2>/dev/null
 bash instruments/documentation-tomographe/accelerators/glossary-linter.sh \
   --terms-file instruments/documentation-tomographe/accelerators/glossary-terms.example.yaml \
   --allowlist instruments/documentation-tomographe/accelerators/glossary-allowlist.txt \
-  src/
+  ${SOURCE_DIRS}
 
 # Or with custom terms and strict mode (fails on violations)
 bash instruments/documentation-tomographe/accelerators/glossary-linter.sh \
   --strict \
   --terms-file path/to/your-terms.yaml \
-  src/
+  ${SOURCE_DIRS}
 
 # Manual check for ambiguous bare-term violations
 # Adapt these terms to the project's glossary
@@ -230,6 +271,11 @@ done
 
 ## Phase 6 — Cross-Doc Coherence (K4)
 
+> **Prerequisite:** This phase requires schema_map, metrics_doc, or
+> access_control_config. When all are absent, emit `Observation:
+> "documentation-tomographe Phase 6 skipped — no cross-reference targets
+> configured"` and proceed to Phase 7.
+
 **Goal:** Verify that documentation artifacts stay synchronized with code artifacts.
 
 ```bash
@@ -237,13 +283,13 @@ done
 # Extract table names from schema docs
 grep -E 'CREATE TABLE|table name' docs/schema-map.md 2>/dev/null | head -30
 # Extract tables from migration code
-grep -rn 'CREATE TABLE' src/ --include='*.rs' --include='*.py' --include='*.sql' | \
+grep -rn 'CREATE TABLE' ${SOURCE_DIRS} --include='*.rs' --include='*.py' --include='*.sql' | \
   sed 's/.*CREATE TABLE \([a-z_]*\).*/\1/' | sort -u
 # Diff the two lists
 
 # K4-2: Metrics registry docs vs actual metrics code
 grep -oP '[a-z]+_[a-z_]+' docs/metrics-registry.md 2>/dev/null | sort -u | wc -l
-grep -c 'register\|counter!\|histogram!\|gauge!' src/metrics.rs 2>/dev/null
+grep -c 'register\|counter!\|histogram!\|gauge!' ${SOURCE_DIRS}/metrics.rs 2>/dev/null
 # Compare: documented count vs registered count
 
 # K4-3: Permission/access control config domains vs code implementation
@@ -251,7 +297,7 @@ grep -c 'register\|counter!\|histogram!\|gauge!' src/metrics.rs 2>/dev/null
 ACCESS_CONTROL_CONFIG="${ACCESS_CONTROL_CONFIG:-config/access-control.yaml}"
 yq '.domains[].name' "$ACCESS_CONTROL_CONFIG" 2>/dev/null | sort
 # Extract domains from code
-grep -rn 'domain.*=.*"' src/ --include='*.rs' --include='*.py' | \
+grep -rn 'domain.*=.*"' ${SOURCE_DIRS} --include='*.rs' --include='*.py' | \
   sed 's/.*"\([^"]*\)".*/\1/' | sort -u
 # Diff the two lists
 
@@ -262,8 +308,8 @@ find . -name 'VERSION' -not -path '*/node_modules/*' -not -path '*/target/*' | w
 done
 
 # K4-5: 00-index.md references all doc files
-total_docs=$(find docs/ -name '*.md' | wc -l)
-indexed_docs=$(grep -c '\.md' docs/00-index.md 2>/dev/null)
+total_docs=$(find ${DOCS_DIR} -name '*.md' -o -name '*.adoc' -o -name '*.asciidoc' | wc -l)
+indexed_docs=$(grep -c '\.md\|\.adoc' ${DOCS_DIR}/00-index.md 2>/dev/null)
 echo "Total docs: $total_docs, Indexed in 00-index.md: $indexed_docs"
 ```
 
