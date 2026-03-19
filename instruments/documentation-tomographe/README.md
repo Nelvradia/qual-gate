@@ -205,8 +205,17 @@ done 2>/dev/null
 **Goal:** Verify the codebase uses canonical terminology consistently.
 
 ```bash
-# Run the glossary linter (if available)
-python3 scripts/lint_glossary.py 2>/dev/null
+# Run the bundled glossary linter accelerator
+bash instruments/documentation-tomographe/accelerators/glossary-linter.sh \
+  --terms-file instruments/documentation-tomographe/accelerators/glossary-terms.example.yaml \
+  --allowlist instruments/documentation-tomographe/accelerators/glossary-allowlist.txt \
+  src/
+
+# Or with custom terms and strict mode (fails on violations)
+bash instruments/documentation-tomographe/accelerators/glossary-linter.sh \
+  --strict \
+  --terms-file path/to/your-terms.yaml \
+  src/
 
 # Manual check for ambiguous bare-term violations
 # Adapt these terms to the project's glossary
@@ -295,7 +304,7 @@ scope:
   design_docs: docs/design/
   operations: docs/operations/
   adrs: .claude/decisions/
-  glossary_script: scripts/lint_glossary.py
+  glossary_script: instruments/documentation-tomographe/accelerators/glossary-linter.sh
   schema_map: docs/schema-map.md
   metrics_doc: docs/metrics-registry.md
   access_control_config: config/access-control.yaml  # adjust to project layout
