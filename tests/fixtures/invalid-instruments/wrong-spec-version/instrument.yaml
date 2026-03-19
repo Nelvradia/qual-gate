@@ -1,0 +1,20 @@
+spec_version: "99.0"
+id: I99
+name: wrong-version-tomographe
+version: 1.0.0
+description: "Instrument with wrong spec_version."
+report_prefix: WV
+dr_sections: []
+phases:
+  - id: 1
+    name: "Scan"
+    requires_llm: true
+    prerequisites: []
+required_files:
+  - README.md
+  - config.yaml
+  - instrument.yaml
+  - methods/
+  - templates/report-template.md
+  - fixes/README.md
+profile_fields: []
