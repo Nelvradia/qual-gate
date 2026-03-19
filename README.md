@@ -32,17 +32,47 @@ qual-gate/
 
 ## How It Works
 
-Qual-gate instruments are designed to be run by an AI coding assistant (Claude Code, etc.) against a target codebase. Each instrument's `README.md` contains the full scanning methodology — the assistant reads it and executes the prescribed checks against your project.
+Qual-gate instruments are designed to be run by an AI coding assistant (Claude Code, Cursor, etc.) against a target codebase. Each instrument's `README.md` contains the full scanning methodology — the assistant reads it and executes the prescribed checks against your project.
 
-```bash
-# Example: run the code quality instrument
-"Read instruments/code-tomographe/README.md and execute a full code quality scan."
+Reports are written to `output/YYYY-MM-DD_{project_name}/` with instrument-prefixed filenames (e.g., `CQ1-code.md`, `SS1-security.md`).
 
-# Example: run all instruments via the orchestrator
-"Read qualitoscope/README.md and execute a full Qualitoscope scan."
+## How to Run
+
+### 1. Create a project profile
+
+Place a `project-profile.yaml` in the root of your target project. Minimum required:
+
+```yaml
+name: my-project
+stack:
+  languages: [python]
 ```
 
-Reports are written to `output/YYYY-MM-DD_{project_name}/` with instrument-prefixed filenames (e.g., `CQ1-code.md`, `SS1-security.md`). Set `project_name` in `qualitoscope/config.yaml` before running.
+Or let auto-discovery generate one — see step 2.
+
+### 2. Run a scan
+
+Tell your AI assistant:
+
+```bash
+# Auto-discover project profile (if none exists) + full scan
+"Read qual-gate/qualitoscope/README.md and execute a full Qualitoscope scan
+against /path/to/my-project."
+
+# Single instrument scan
+"Read qual-gate/instruments/code-tomographe/README.md and execute a code quality
+scan against /path/to/my-project."
+
+# Targeted scan (specific instruments)
+"Read qual-gate/qualitoscope/README.md and execute a targeted scan for
+security + compliance against /path/to/my-project."
+```
+
+### 3. Review findings
+
+Each finding includes a severity rating, evidence, and a link to a fix guide with
+per-language remediation steps. See [Getting Started](docs/getting-started.md) for
+a full walkthrough.
 
 ## Instruments
 
@@ -70,9 +100,10 @@ Each instrument follows a standard structure:
 
 Instruments are designed to be project-agnostic. To adapt them to your codebase:
 
-1. **Target paths** — Each instrument scans the project it's pointed at. Paths in `config.yaml` and method files use relative references to the target project.
+1. **Project profile** — `project-profile.yaml` declares your stack, paths, and feature toggles. All instruments read from this single file. See the [profile reference](docs/project-profile-reference.md).
 2. **Checklists** — Found in each instrument's `checklists/` directory. Add, remove, or modify checklist items to match your project's architecture and standards.
 3. **Severity thresholds** — Configurable in `config.yaml` per instrument and in `qualitoscope/config.yaml` for the orchestrator.
+4. **Conditional toggles** — Enable `permission_system`, `ai_ml_components`, `gdpr_scope`, or `ai_act_scope` in your profile to activate domain-specific checks.
 
 ## Severity Scale
 
@@ -85,6 +116,13 @@ All instruments use a unified severity scale:
 | **Minor** | Low risk. Track and fix when convenient. |
 | **Observation** | Informational. No action required. |
 | **OK** | Check passed. |
+
+## Documentation
+
+- **[Getting Started](docs/getting-started.md)** — first scan walkthrough with worked example
+- **[Project Profile Reference](docs/project-profile-reference.md)** — field-by-field `project-profile.yaml` documentation
+- **[Instrument Authoring Guide](docs/instrument-authoring-guide.md)** — create custom instruments
+- **[Changelog](CHANGELOG.md)** — version history
 
 ## License
 
