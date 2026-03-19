@@ -38,6 +38,22 @@ Works by LLM analysis of manifest files, lockfiles, and source imports. Shell co
 
 ---
 
+## Path Resolution
+
+Before running any phase, resolve these paths from the target project's
+`project-profile.yaml`. Use defaults when profile fields are absent.
+
+| Variable | Profile Field | Default |
+|----------|--------------|---------|
+| `SOURCE_DIRS` | `paths.source_dirs` | `src/` |
+| `TEST_DIRS` | `paths.test_dirs` | `tests/` |
+| `DOCS_DIR` | `paths.docs_dir` | `docs/` |
+
+Replace all `src/` references in accelerator commands below with
+`${SOURCE_DIRS}`.
+
+---
+
 ## Phase 1 — Ecosystem Discovery
 
 **Goal:** Build a complete inventory of every package manager present in the project before any other phase runs. Do not assume the stack — discover it.
@@ -92,6 +108,10 @@ A dependency inventory table per ecosystem:
 ---
 
 ## Phase 2 — Usage Analysis
+
+> **Prerequisite:** This phase requires installed dependencies or importable
+> source. When absent, emit `Observation: "dependency-tomographe Phase 2
+> skipped — no importable source found"` and proceed to Phase 3.
 
 **Goal:** Find the gap between what is declared in manifests and what is actually imported in source code. Unused dependencies carry licence obligations and supply chain risk with zero benefit.
 

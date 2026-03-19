@@ -29,7 +29,27 @@
 
 ---
 
+## Path Resolution
+
+Before running any phase, resolve these paths from the target project's
+`project-profile.yaml`. Use defaults when profile fields are absent.
+
+| Variable | Profile Field | Default |
+|----------|--------------|---------|
+| `SOURCE_DIRS` | `paths.source_dirs` | `src/` |
+| `TEST_DIRS` | `paths.test_dirs` | `tests/` |
+| `DOCS_DIR` | `paths.docs_dir` | `docs/` |
+
+Replace all `src/` references in accelerator commands below with
+`${SOURCE_DIRS}`.
+
+---
+
 ## Phase 1 — Golden Datasets (No LLM Required)
+
+> **Prerequisite:** This phase requires `profile.conventions.golden_dir`.
+> When absent, emit `Observation: "ai-ml-tomographe Phase 1 skipped — no
+> golden dataset directory configured"` and proceed to Phase 2.
 
 **Goal:** Validate the integrity of evaluation datasets.
 
@@ -85,6 +105,10 @@ echo "Target minimums: corrections>=50, summaries>=30, classifications>=40, temp
 
 ## Phase 2 — Extraction Quality (LLM Required)
 
+> **Prerequisite:** This phase requires golden dataset from Phase 1. When
+> absent, emit `Observation: "ai-ml-tomographe Phase 2 skipped — no golden
+> dataset available"` and proceed to Phase 3.
+
 **Goal:** Measure accuracy of LLM extractions against golden datasets.
 
 ### LLM steps
@@ -124,6 +148,10 @@ fi
 ---
 
 ## Phase 3 — RAG Retrieval (LLM Required)
+
+> **Prerequisite:** This phase requires `profile.conventions.rag_eval_dir`.
+> When absent, emit `Observation: "ai-ml-tomographe Phase 3 skipped — no RAG
+> evaluation directory configured"` and proceed to Phase 4.
 
 **Goal:** Evaluate semantic search quality.
 
@@ -262,6 +290,10 @@ fi
 ---
 
 ## Phase 6 — Confidence Calibration (LLM Required)
+
+> **Prerequisite:** This phase requires ≥100 production data points. When
+> absent, emit `Observation: "ai-ml-tomographe Phase 6 skipped — insufficient
+> calibration data"` and proceed to Phase 7.
 
 **Goal:** Verify that confidence scores match actual correctness rates.
 

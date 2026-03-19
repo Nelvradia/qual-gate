@@ -29,6 +29,22 @@
 
 ---
 
+## Path Resolution
+
+Before running any phase, resolve these paths from the target project's
+`project-profile.yaml`. Use defaults when profile fields are absent.
+
+| Variable | Profile Field | Default |
+|----------|--------------|---------|
+| `SOURCE_DIRS` | `paths.source_dirs` | `src/` |
+| `TEST_DIRS` | `paths.test_dirs` | `tests/` |
+| `DOCS_DIR` | `paths.docs_dir` | `docs/` |
+
+Replace all `src/` references in accelerator commands below with
+`${SOURCE_DIRS}`.
+
+---
+
 ## Phase 1 — Inventory
 
 **Goal:** Complete map of all documentation.
@@ -42,9 +58,9 @@ find docs/ -name '*.md' | sed 's|/[^/]*$||' | sort | uniq -c | sort -rn
 find . -name 'README.md' -not -path '*/node_modules/*' -not -path '*/target/*' | sort
 
 # Inline doc coverage
-grep -rn '///\|"""\|#\s' src/ --include='*.rs' --include='*.py' | wc -l
+grep -rn '///\|"""\|#\s' ${SOURCE_DIRS} --include='*.rs' --include='*.py' | wc -l
 # vs public items:
-grep -rn 'pub fn \|pub struct \|pub enum \|pub trait \|def \|class ' src/ --include='*.rs' --include='*.py' | wc -l
+grep -rn 'pub fn \|pub struct \|pub enum \|pub trait \|def \|class ' ${SOURCE_DIRS} --include='*.rs' --include='*.py' | wc -l
 
 # ADR count
 find .claude/decisions/ -name '*.md' 2>/dev/null | wc -l
@@ -162,6 +178,10 @@ done 2>/dev/null | head -20
 
 ## Phase 4 — Design-to-Impl Delta (K3)
 
+> **Prerequisite:** This phase requires `profile.conventions.design_docs`.
+> When absent, emit `Observation: "documentation-tomographe Phase 4 skipped —
+> no design docs path configured"` and proceed to Phase 5.
+
 **Goal:** For each implemented feature, compare design spec to actual code.
 
 ```bash
@@ -202,6 +222,11 @@ done 2>/dev/null
 
 ## Phase 5 — Glossary Compliance (K2)
 
+> **Prerequisite:** This phase requires glossary terms file or source
+> directories. When absent, emit `Observation: "documentation-tomographe
+> Phase 5 skipped — no glossary terms or source directories found"` and
+> proceed to Phase 6.
+
 **Goal:** Verify the codebase uses canonical terminology consistently.
 
 ```bash
@@ -209,13 +234,13 @@ done 2>/dev/null
 bash instruments/documentation-tomographe/accelerators/glossary-linter.sh \
   --terms-file instruments/documentation-tomographe/accelerators/glossary-terms.example.yaml \
   --allowlist instruments/documentation-tomographe/accelerators/glossary-allowlist.txt \
-  src/
+  ${SOURCE_DIRS}
 
 # Or with custom terms and strict mode (fails on violations)
 bash instruments/documentation-tomographe/accelerators/glossary-linter.sh \
   --strict \
   --terms-file path/to/your-terms.yaml \
-  src/
+  ${SOURCE_DIRS}
 
 # Manual check for ambiguous bare-term violations
 # Adapt these terms to the project's glossary
@@ -230,6 +255,11 @@ done
 
 ## Phase 6 — Cross-Doc Coherence (K4)
 
+> **Prerequisite:** This phase requires schema_map, metrics_doc, or
+> access_control_config. When all are absent, emit `Observation:
+> "documentation-tomographe Phase 6 skipped — no cross-reference targets
+> configured"` and proceed to Phase 7.
+
 **Goal:** Verify that documentation artifacts stay synchronized with code artifacts.
 
 ```bash
@@ -237,13 +267,13 @@ done
 # Extract table names from schema docs
 grep -E 'CREATE TABLE|table name' docs/schema-map.md 2>/dev/null | head -30
 # Extract tables from migration code
-grep -rn 'CREATE TABLE' src/ --include='*.rs' --include='*.py' --include='*.sql' | \
+grep -rn 'CREATE TABLE' ${SOURCE_DIRS} --include='*.rs' --include='*.py' --include='*.sql' | \
   sed 's/.*CREATE TABLE \([a-z_]*\).*/\1/' | sort -u
 # Diff the two lists
 
 # K4-2: Metrics registry docs vs actual metrics code
 grep -oP '[a-z]+_[a-z_]+' docs/metrics-registry.md 2>/dev/null | sort -u | wc -l
-grep -c 'register\|counter!\|histogram!\|gauge!' src/metrics.rs 2>/dev/null
+grep -c 'register\|counter!\|histogram!\|gauge!' ${SOURCE_DIRS}/metrics.rs 2>/dev/null
 # Compare: documented count vs registered count
 
 # K4-3: Permission/access control config domains vs code implementation
@@ -251,7 +281,7 @@ grep -c 'register\|counter!\|histogram!\|gauge!' src/metrics.rs 2>/dev/null
 ACCESS_CONTROL_CONFIG="${ACCESS_CONTROL_CONFIG:-config/access-control.yaml}"
 yq '.domains[].name' "$ACCESS_CONTROL_CONFIG" 2>/dev/null | sort
 # Extract domains from code
-grep -rn 'domain.*=.*"' src/ --include='*.rs' --include='*.py' | \
+grep -rn 'domain.*=.*"' ${SOURCE_DIRS} --include='*.rs' --include='*.py' | \
   sed 's/.*"\([^"]*\)".*/\1/' | sort -u
 # Diff the two lists
 

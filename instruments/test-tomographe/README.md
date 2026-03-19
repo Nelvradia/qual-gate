@@ -30,7 +30,27 @@
 
 ---
 
+## Path Resolution
+
+Before running any phase, resolve these paths from the target project's
+`project-profile.yaml`. Use defaults when profile fields are absent.
+
+| Variable | Profile Field | Default |
+|----------|--------------|---------|
+| `SOURCE_DIRS` | `paths.source_dirs` | `src/` |
+| `TEST_DIRS` | `paths.test_dirs` | `tests/` |
+| `DOCS_DIR` | `paths.docs_dir` | `docs/` |
+
+Replace all `src/` references in accelerator commands below with
+`${SOURCE_DIRS}`.
+
+---
+
 ## Phase 1 — Inventory
+
+> **Prerequisite:** This phase requires test directories or colocated test
+> files. When absent, emit `Observation: "test-tomographe Phase 1 skipped —
+> no test files found"` and proceed to Phase 2.
 
 **Goal:** Build a complete inventory of all tests by language, module, and type.
 
@@ -190,12 +210,12 @@ grep -rn 'expect(\|toBe(\|toEqual(\|toThrow(\|should\.' . --include='*.test.*' -
 ```bash
 # List all source files alongside test files to check naming alignment
 # Rust
-find src/ -name '*.rs' ! -name 'mod.rs' | sort
-find tests/ -name '*.rs' | sort
+find ${SOURCE_DIRS} -name '*.rs' ! -name 'mod.rs' | sort
+find ${TEST_DIRS} -name '*.rs' | sort
 
 # Python
-find src/ -name '*.py' ! -name '__init__.py' | sort
-find tests/ -name 'test_*.py' | sort
+find ${SOURCE_DIRS} -name '*.py' ! -name '__init__.py' | sort
+find ${TEST_DIRS} -name 'test_*.py' | sort
 
 # Go
 find . -name '*.go' ! -name '*_test.go' | sort
@@ -225,6 +245,10 @@ find . -name '*_test.go' | sort
 ---
 
 ## Phase 5 — Health
+
+> **Prerequisite:** This phase requires a CI configuration file. When absent,
+> emit `Observation: "test-tomographe Phase 5 skipped — no CI configuration
+> found"` and proceed to Phase 6.
 
 **Goal:** Assess CI reliability and test suite operational health.
 
@@ -277,6 +301,10 @@ glab api "projects/:id/pipelines?per_page=20&status=failed" 2>/dev/null | jq len
 ---
 
 ## Phase 6 — Regression Risk
+
+> **Prerequisite:** This phase requires git history with ≥2 commits. When
+> absent, emit `Observation: "test-tomographe Phase 6 skipped — insufficient
+> git history"` and proceed to Phase 7.
 
 **Goal:** Identify high-churn files with low test density — the riskiest code.
 

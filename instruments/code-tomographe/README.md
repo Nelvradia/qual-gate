@@ -29,7 +29,27 @@
 
 ---
 
+## Path Resolution
+
+Before running any phase, resolve these paths from the target project's
+`project-profile.yaml`. Use defaults when profile fields are absent.
+
+| Variable | Profile Field | Default |
+|----------|--------------|---------|
+| `SOURCE_DIRS` | `paths.source_dirs` | `src/` |
+| `TEST_DIRS` | `paths.test_dirs` | `tests/` |
+| `DOCS_DIR` | `paths.docs_dir` | `docs/` |
+
+Replace all `src/` references in accelerator commands below with
+`${SOURCE_DIRS}`.
+
+---
+
 ## Phase 1 — Formatting & Linting
+
+> **Prerequisite:** This phase requires source files in a supported language.
+> When absent, emit `Observation: "code-tomographe Phase 1 skipped — no source
+> files found"` and proceed to Phase 2.
 
 **Goal:** Verify all code passes style gates.
 
@@ -49,10 +69,11 @@ cargo clippy --workspace --all-targets 2>&1 | tee output/YYYY-MM-DD_{project_nam
 LINTER_WARNINGS=$(grep -c 'warning\[' output/YYYY-MM-DD_{project_name}/scratch/code-tomographe/clippy.txt 2>/dev/null || echo 0)
 LINTER_ERRORS=$(grep -c 'error\[' output/YYYY-MM-DD_{project_name}/scratch/code-tomographe/clippy.txt 2>/dev/null || echo 0)
 # Unsafe blocks without SAFETY justification
-grep -rn 'unsafe' src/ --include='*.rs' | grep -v '// SAFETY:' | wc -l
+# For each directory in SOURCE_DIRS (from profile, default: src/):
+grep -rn 'unsafe' ${SOURCE_DIRS} --include='*.rs' | grep -v '// SAFETY:' | wc -l
 
 # TypeScript/JavaScript (if Node is available)
-npx eslint src/ --format json 2>/dev/null > output/YYYY-MM-DD_{project_name}/scratch/code-tomographe/eslint.json
+npx eslint ${SOURCE_DIRS} --format json 2>/dev/null > output/YYYY-MM-DD_{project_name}/scratch/code-tomographe/eslint.json
 npx tsc --noEmit 2>&1 | tee output/YYYY-MM-DD_{project_name}/scratch/code-tomographe/tsc-check.txt
 
 # Kotlin (if ktlint is available)
@@ -73,6 +94,10 @@ npx tsc --noEmit 2>&1 | tee output/YYYY-MM-DD_{project_name}/scratch/code-tomogr
 
 ## Phase 2 — Complexity
 
+> **Prerequisite:** This phase requires source files in a supported language.
+> When absent, emit `Observation: "code-tomographe Phase 2 skipped — no source
+> files found"` and proceed to Phase 3.
+
 **Goal:** Identify overly complex functions that are hard to test, review, and maintain.
 
 ### LLM steps
@@ -88,19 +113,19 @@ npx tsc --noEmit 2>&1 | tee output/YYYY-MM-DD_{project_name}/scratch/code-tomogr
 # Long functions — heuristic via brace counting
 awk '/^[[:space:]]*pub (async )?fn / { start=NR; name=$0 }
      /^}$/ && start { len=NR-start; if(len>50) print FILENAME":"start":"name" ("len" lines)"; start=0 }
-    ' src/**/*.rs 2>/dev/null
+    ' ${SOURCE_DIRS}/**/*.rs 2>/dev/null
 
 # Nesting depth — lines with >4 levels of indentation (adjust spaces per project style)
-grep -rn '                    ' src/ --include='*.rs' | grep -v '^\s*//' | grep -v '^\s*\*' | head -20
+grep -rn '                    ' ${SOURCE_DIRS} --include='*.rs' | grep -v '^\s*//' | grep -v '^\s*\*' | head -20
 
 # Python (if radon is available)
-radon cc -s src/
+radon cc -s ${SOURCE_DIRS}
 
 # Go (if gocyclo is available)
 gocyclo ./...
 
 # JavaScript/TypeScript (if Node is available)
-npx complexity-report src/
+npx complexity-report ${SOURCE_DIRS}
 ```
 
 ### Complexity Checklist
@@ -124,6 +149,10 @@ npx complexity-report src/
 
 ## Phase 3 — Dead Code
 
+> **Prerequisite:** This phase requires source files in a supported language.
+> When absent, emit `Observation: "code-tomographe Phase 3 skipped — no source
+> files found"` and proceed to Phase 4.
+
 **Goal:** Detect code that exists but is never called.
 
 ### LLM steps
@@ -141,7 +170,7 @@ cargo clippy --workspace -- -W dead_code 2>&1 | grep 'dead_code' | head -20
 cargo clippy --workspace -- -W unused_imports 2>&1 | grep 'unused_import' | head -20
 
 # Python (if vulture is available)
-vulture src/
+vulture ${SOURCE_DIRS}
 
 # TypeScript (if ts-prune is available)
 npx ts-prune
@@ -174,11 +203,11 @@ npx ts-prune
 jscpd --min-lines 10 .
 
 # Rust — similar function signatures across modules
-grep -rn 'pub fn \|pub async fn ' src/ --include='*.rs' | \
+grep -rn 'pub fn \|pub async fn ' ${SOURCE_DIRS} --include='*.rs' | \
   sed 's/.*fn \([a-z_]*\)(\(.*\)).*$/\1|\2/' | sort | uniq -d
 
 # Rust — repeated SQL patterns
-grep -rn 'SELECT\|INSERT\|UPDATE\|DELETE' src/ --include='*.rs' | \
+grep -rn 'SELECT\|INSERT\|UPDATE\|DELETE' ${SOURCE_DIRS} --include='*.rs' | \
   sed 's/.*"\(.*\)".*/\1/' | sort | uniq -c | sort -rn | head -10
 ```
 
@@ -207,11 +236,11 @@ grep -rn 'SELECT\|INSERT\|UPDATE\|DELETE' src/ --include='*.rs' | \
 ```bash
 # Debt marker inventory
 echo "=== TODOs ==="
-grep -rn 'TODO\|FIXME\|HACK\|XXX\|TEMP\|WORKAROUND' src/ | wc -l
+grep -rn 'TODO\|FIXME\|HACK\|XXX\|TEMP\|WORKAROUND' ${SOURCE_DIRS} | wc -l
 
 # Per-category breakdown
 for tag in TODO FIXME HACK XXX TEMP WORKAROUND; do
-  count=$(grep -rn "$tag" src/ 2>/dev/null | wc -l)
+  count=$(grep -rn "$tag" ${SOURCE_DIRS} 2>/dev/null | wc -l)
   echo "$tag: $count"
 done
 

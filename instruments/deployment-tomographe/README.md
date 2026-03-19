@@ -29,7 +29,27 @@
 
 ---
 
+## Path Resolution
+
+Before running any phase, resolve these paths from the target project's
+`project-profile.yaml`. Use defaults when profile fields are absent.
+
+| Variable | Profile Field | Default |
+|----------|--------------|---------|
+| `SOURCE_DIRS` | `paths.source_dirs` | `src/` |
+| `TEST_DIRS` | `paths.test_dirs` | `tests/` |
+| `DOCS_DIR` | `paths.docs_dir` | `docs/` |
+
+Replace all `src/` references in accelerator commands below with
+`${SOURCE_DIRS}`.
+
+---
+
 ## Phase 1 — Pipeline Structure
+
+> **Prerequisite:** This phase requires a CI configuration file. When absent,
+> emit `Observation: "deployment-tomographe Phase 1 skipped — no CI
+> configuration found"` and proceed to Phase 2.
 
 **Goal:** Verify CI pipeline is complete, correct, and properly gates releases.
 
@@ -108,6 +128,10 @@ grep 'timeout:' .gitlab-ci.yml 2>/dev/null | head -10
 
 ## Phase 2 — Build Reproducibility
 
+> **Prerequisite:** This phase requires build manifests and lockfiles. When
+> absent, emit `Observation: "deployment-tomographe Phase 2 skipped — no build
+> manifests found"` and proceed to Phase 3.
+
 **Goal:** Verify that builds are deterministic and dependencies locked.
 
 ### LLM steps
@@ -165,6 +189,10 @@ grep -A5 'cache:' .gitlab-ci.yml 2>/dev/null | head -15
 
 ## Phase 3 — Artifact & Distribution
 
+> **Prerequisite:** This phase requires Dockerfile or compose files. When
+> absent, emit `Observation: "deployment-tomographe Phase 3 skipped — no
+> container configuration found"` and proceed to Phase 4.
+
 **Goal:** Verify that all deliverable artifacts are correctly built and distributed.
 
 ### LLM steps
@@ -205,6 +233,10 @@ grep -A5 'artifacts:' .gitlab-ci.yml 2>/dev/null | grep 'expire_in' | head -5
 
 ## Phase 4 — Rollback & Recovery
 
+> **Prerequisite:** This phase requires Dockerfile or compose files. When
+> absent, emit `Observation: "deployment-tomographe Phase 4 skipped — no
+> container configuration found"` and proceed to Phase 5.
+
 **Goal:** Verify that failed deployments can be safely reversed.
 
 ### LLM steps
@@ -226,7 +258,7 @@ find docs/ -name '*rollback*' -o -name '*disaster*' -o -name '*recovery*' 2>/dev
 grep 'image:' docker-compose.yml 2>/dev/null | head -10
 
 # Database migration rollback
-grep -rn 'down\|rollback\|revert' src/ --include='*.rs' --include='*.py' --include='*.sql' | head -10
+grep -rn 'down\|rollback\|revert' ${SOURCE_DIRS} --include='*.rs' --include='*.py' --include='*.sql' | head -10
 
 # Backup integration
 grep -rn 'backup' config/ docker-compose.yml docs/ --include='*.yaml' --include='*.yml' --include='*.md' 2>/dev/null | head -10
@@ -248,6 +280,10 @@ grep 'expire\|retention\|keep' .gitlab-ci.yml 2>/dev/null | head -5
 ---
 
 ## Phase 5 — Environment Parity
+
+> **Prerequisite:** This phase requires Dockerfile or compose files. When
+> absent, emit `Observation: "deployment-tomographe Phase 5 skipped — no
+> container configuration found"` and proceed to Phase 6.
 
 **Goal:** Verify dev, CI, and prod environments are consistent.
 
