@@ -218,6 +218,10 @@ conventions:
     default: null
     description: >
       Path to the glossary linter script.
+      Deprecated in v1.0.0. The glossary linter is now bundled with
+      documentation-tomographe at accelerators/glossary-linter.sh.
+      This field is retained for backward compatibility with custom
+      glossary scripts.
     consumed_by: [documentation-tomographe]
 
   schema_map:

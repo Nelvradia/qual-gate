@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Remediation library: fix guides for all 13 instruments with per-language code examples
+- Dependency-tomographe fix guides (5 guides: unused deps, licence risk, unmaintained deps,
+  missing lockfile, excessive transitive deps)
+- DR section S14 for AI/ML quality dimension
+- `.claudeignore` for Claude Code file discovery
 - Fixes content standard (`instruments/fixes-content-standard.md`)
 - Getting-started guide (`docs/getting-started.md`)
 - Project profile field reference (`docs/project-profile-reference.md`)
@@ -24,8 +28,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - This CHANGELOG
 
 ### Changed
+- Glossary linter absorbed into documentation-tomographe as accelerator command
+  (`instruments/documentation-tomographe/accelerators/glossary-linter.sh`)
+- ROADMAP open questions resolved (AI-ML → S14, glossary absorbed, inheritance deferred,
+  validation targets selected)
+- VISION.md now tracked in version control
 - Root README updated with "How to Run" section and documentation links
 - ROADMAP version milestones reconciled with actual delivery
+
+### Fixed
+- Removed stale `instruments/dependency-tomographe/output/` directory
+- Frontmatter version inconsistencies in VISION.md and ROADMAP.md
 
 ---
 

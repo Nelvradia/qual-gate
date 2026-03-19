@@ -1,8 +1,7 @@
 ---
 title: "qual-gate — Roadmap to v1.0.0"
-status: draft
-last-updated: 2026-03-18
-version: 0.1.0
+status: current
+last-updated: 2026-03-19
 ---
 
 # qual-gate — Roadmap to v1.0.0
@@ -655,20 +654,21 @@ Started guide, which needs both the profile and auto-discovery to be done).
 
 ---
 
-## Open Questions
+## Open Questions (Resolved)
 
-1. **AI-ML as S14?** Should I12 (ai-ml-tomographe) become DR section S14, or remain a
-   supplementary non-DR dimension? Decision needed before WS4-03.
+1. ~~**AI-ML as S14?**~~ **Resolved: S14.** I12 maps to DR section S14, conditional on
+   `toggles.ai_ml_components`. When false, S14 is omitted from DR reports. The "Overall
+   Summary" previously occupying S14 is now an unnumbered aggregation produced by Phase 5.
 
-2. **Glossary linter scope.** Should the glossary linter remain a standalone bash script,
-   or be absorbed into the documentation-tomographe as an accelerator command? The current
-   standalone form is useful for CI but creates a maintenance surface outside the instrument
-   structure.
+2. ~~**Glossary linter scope.**~~ **Resolved: absorbed into documentation-tomographe.**
+   Script moved to `instruments/documentation-tomographe/accelerators/glossary-linter.sh`.
+   Profile field `glossary_script` deprecated but retained for backward compatibility with
+   custom glossary scripts.
 
-3. **Profile inheritance.** Should organisations be able to define a base profile that
-   individual projects extend? (e.g. `extends: company-defaults.yaml`). This is a Horizon 2
-   concern but the schema design in WS1-01 should not preclude it.
+3. ~~**Profile inheritance.**~~ **Deferred to Horizon 2.** Current schema is flat. An
+   `extends:` field will be designed when multi-project demand materialises. Documented in
+   VISION.md Horizon 2 scope.
 
-4. **Validation target for v1.0.** Which 3+ diverse projects will be used to validate
-   that qual-gate works universally before the v1.0.0 release? Ideal mix: one Rust project,
-   one Python project, one TypeScript/Node project, one multi-language monorepo.
+4. ~~**Validation target for v1.0.**~~ **Selected:** OpenClaw (TypeScript/Python, AI agent),
+   Boost (C++, scoped to single library), qual-gate (self-scan, methodology repo), + one
+   additional TBD. Validation runs are separate sessions producing scan reports.
