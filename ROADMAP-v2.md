@@ -1,6 +1,6 @@
 ---
 title: "qual-gate — Roadmap to v2.0.0"
-status: draft
+status: current
 last-updated: 2026-03-19
 ---
 
@@ -57,26 +57,19 @@ qual-gate v1.0.0 shipped 2026-03-19. It provides:
 
 ---
 
-## Strategic Decisions
+## Strategic Decisions (Resolved)
 
-These must be resolved early in v2.0 development. Each decision shapes the
-architecture of everything that follows.
+All strategic decisions resolved 2026-03-19. Full rationale in
+`.claude/decisions/002-v2-strategic-decisions.md`.
 
-### SD-01: Packaging Model
+| # | Decision | Resolution |
+|---|----------|------------|
+| **SD-01** | Packaging model | **CLI wrapper.** Python CLI orchestrates scanning, delegates to Claude Code. Methodology markdown stays the source of truth. |
+| **SD-02** | AI provider strategy | **Claude-specific for v2.0.** Tight integration with Claude Code (sub-agents, tool use, MCP). Provider-agnostic abstraction is out of scope — can be revisited in Horizon 3. |
+| **SD-03** | Community model | **Two-tier.** Core instruments (13, maintainer-reviewed) + community instruments (spec-validated, labelled). Community instruments must pass `validate-instrument`. |
+| **SD-04** | Target audience | **Engineering teams.** CI integration, scan profiles, multi-repo config. Enterprise (audit trails, SSO) deferred to Horizon 3+. |
 
-**Question:** Stay as a methodology repo that users clone, or build a CLI?
-
-| Option | Pros | Cons |
-|--------|------|------|
-| **Methodology-only** | Zero maintenance burden, pure content | No CI integration, no automation, high friction |
-| **CLI wrapper** | CI integration, discoverability, automation | Engineering burden, versioning complexity |
-| **Hybrid (Recommended)** | Methodology stays authoritative; CLI is a thin orchestration layer that reads it | Best of both — methodology is still portable, CLI adds automation |
-
-**Recommendation:** Hybrid. The CLI resolves profiles, selects instruments, manages
-output, and delegates to an AI provider. The methodology markdown files remain the
-source of truth — the CLI never interprets them, it passes them to the AI.
-
-**Deliverable:** `qual-gate` CLI (Python or Rust) with subcommands:
+**CLI deliverable:** `qual-gate` CLI (Python 3.13+) with subcommands:
 ```
 qual-gate scan --profile=full --target=./my-project
 qual-gate scan --instruments=security,compliance
@@ -84,41 +77,6 @@ qual-gate new-instrument <name>
 qual-gate list [--installed]
 qual-gate validate-profile ./project-profile.yaml
 ```
-
-### SD-02: AI Provider Strategy
-
-**Question:** Claude-specific or provider-agnostic?
-
-**Recommendation:** Provider-agnostic methodology with a Claude Code reference
-implementation. The instrument specification defines what the AI must do (read files,
-run commands, produce findings). How it does it depends on the provider.
-
-**Practical implication:** Instrument specs must not reference Claude-specific features
-(sub-agents, tool use syntax, MCP). They define capabilities: "read file", "run command",
-"search codebase", "produce structured output".
-
-### SD-03: Community Model
-
-**Question:** How open should instrument contribution be?
-
-**Recommendation:** Two-tier model:
-- **Core instruments** (the current 13) — maintained by project maintainers, strict
-  review, shipped with every release
-- **Community instruments** — contributed via a registry, reviewed for spec compliance
-  but not for domain expertise, clearly labelled as community-maintained
-
-**Governance:** Community instruments must pass spec validation (SD-04 below) and include
-at minimum: instrument.yaml manifest, README with phases, config.yaml with defaults,
-and one fix guide per finding category.
-
-### SD-04: Target Audience (v2.0 Focus)
-
-**Question:** Individual devs, engineering teams, or enterprises?
-
-**Recommendation for v2.0:** Engineering teams. Individual devs already benefit from
-v1.0 (clone and scan). Enterprise features (audit trails, SSO, compliance reports)
-are Horizon 3+. v2.0 bridges the gap with: CI integration readiness, scan profiles
-per team workflow, and multi-project profile inheritance.
 
 ---
 
@@ -647,13 +605,13 @@ qual-gate/
 
 ---
 
-### WS12-02: Implement AI provider abstraction
+### WS12-02: Implement Claude Code runner
 
-The runner module delegates to an AI provider without coupling to a specific one:
+The runner module invokes Claude Code to execute instrument scans:
 
 ```python
-class ScanRunner(Protocol):
-    """Interface that any AI provider must implement."""
+class ClaudeRunner:
+    """Invokes Claude Code CLI to execute instrument scans."""
 
     def execute_instrument(
         self,
@@ -661,14 +619,18 @@ class ScanRunner(Protocol):
         profile: ProjectProfile,
         language_packs: list[LanguagePack],
         output_dir: Path,
-    ) -> InstrumentReport: ...
+    ) -> InstrumentReport:
+        """Invoke claude CLI with instrument README as prompt."""
+        ...
 ```
 
-**Reference implementation:** Claude Code via subprocess (invoke `claude` CLI
-with the instrument README as prompt + target project context).
+**Implementation:** Invoke `claude` CLI via subprocess, passing the instrument
+README as the system prompt and the target project as the working directory.
+Leverage Claude Code features: sub-agents for parallel phase execution, tool use
+for file operations, MCP for structured output.
 
-**Future providers:** OpenAI Codex, local models via Ollama, any agent framework
-that can read files and run commands.
+**No provider abstraction layer for v2.0.** Claude Code is the only supported
+runner. A provider-agnostic interface can be added in Horizon 3 if demand emerges.
 
 **Estimate:** 6–8h
 
@@ -869,31 +831,38 @@ manifests or all language packs to begin.
 | Version | What ships | Status |
 |---------|------------|--------|
 | v1.0.0 | Universal quality gate — 13 instruments, validated on 3 ecosystems | Shipped |
-| v1.1.0 | Instrument specification + manifests for all 13 (Phase F) | Planned |
-| v1.2.0 | Profile inheritance + scan profiles + language packs (Phase F+G) | Planned |
+| v1.1.0 | Instrument specification + manifests for all 13 (Phase F). Last release supporting instruments without `instrument.yaml`. | Planned |
+| v1.2.0 | Profile inheritance + scan profiles + language packs (Phase F+G). `instrument.yaml` required. | Planned |
 | v2.0.0 | CLI wrapper + scaffold + registry + full documentation (Phase H+I) | Planned |
 
 **Note:** v1.1.0 and v1.2.0 are intermediate releases on the path to v2.0. They
 ship value incrementally — the instrument spec is useful even without the CLI,
 and language packs improve v1.x users' experience immediately.
 
+**Compatibility:** v1.1.0 is the one-minor-release compatibility window. Instruments
+without `instrument.yaml` work but emit a deprecation warning. v1.2.0+ requires it.
+
 ---
 
-## Open Questions
+## Open Questions (Resolved)
 
-1. **CLI language: Python or Rust?** Recommendation: Python for v2.0 MVP, evaluate
-   Rust for v3.0 based on performance needs. Both have excellent AI SDK support.
+1. ~~**CLI language: Python or Rust?**~~ **Resolved: Python 3.13+.** Fastest iteration,
+   first-class Anthropic SDK support, universally available. Evaluate Rust for v3.0
+   if performance becomes a bottleneck.
 
-2. **Registry hosting:** Git repo (simple, works now) vs dedicated service (scalable,
-   needs infrastructure). Start with Git repo, migrate when community grows.
+2. ~~**Registry hosting.**~~ **Resolved: Git repo.** A `registry/index.yaml` in a
+   public repo. Zero infrastructure. Migrate to a service when community grows past
+   ~50 instruments.
 
-3. **Language pack granularity:** One pack per language, or one pack per ecosystem
-   (e.g., `react.yaml` extends `typescript.yaml`)? Start with one per language,
-   add ecosystem packs as demand emerges.
+3. ~~**Language pack granularity.**~~ **Resolved: One pack per language.** `rust.yaml`,
+   `python.yaml`, `cpp.yaml`, etc. Add ecosystem-specific packs (e.g., `react.yaml`)
+   when demand emerges.
 
-4. **Backward compatibility:** How long to support v1.0-style instruments (no
-   instrument.yaml)? Recommendation: v2.0 supports both, v2.1 requires manifests.
+4. ~~**Backward compatibility.**~~ **Resolved: One minor release cycle.** v1.1.0
+   supports instruments with or without `instrument.yaml` (warns on missing). v1.2.0
+   requires manifests.
 
-5. **AI provider testing:** How to test the CLI against multiple providers in CI?
-   Mock provider for unit tests + real provider for integration tests (API key
-   gated).
+5. ~~**AI provider testing.**~~ **Resolved: No real credentials in CI.** This is a
+   public repo. CLI unit tests use a mock Claude runner. Integration tests are
+   local-only (developer runs manually with their own Claude Code install). No API
+   keys in CI pipelines.
