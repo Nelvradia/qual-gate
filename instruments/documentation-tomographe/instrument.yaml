@@ -1,0 +1,86 @@
+spec_version: "2.0"
+
+# ─── Identity ───────────────────────────────────────────────────────
+id: I04
+name: documentation-tomographe
+version: 1.0.0
+description: >
+  Documentation health scanner. Audits doc coverage, staleness,
+  cross-reference integrity, glossary compliance, design-to-implementation
+  delta, and cross-document coherence.
+report_prefix: DOC
+
+# ─── DR Mapping ─────────────────────────────────────────────────────
+dr_sections: [S2, K2, K3, K4]
+
+# ─── Phase Declarations ─────────────────────────────────────────────
+phases:
+  - id: 1
+    name: "Inventory"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 2
+    name: "Staleness"
+    requires_llm: true
+    prerequisites: [1]
+
+  - id: 3
+    name: "Cross-Reference Integrity"
+    requires_llm: true
+    prerequisites: [1]
+
+  - id: 4
+    name: "Design-to-Impl Delta"
+    requires_llm: true
+    prerequisites: [1]
+
+  - id: 5
+    name: "Glossary Compliance"
+    requires_llm: true
+    prerequisites: [1]
+
+  - id: 6
+    name: "Cross-Doc Coherence"
+    requires_llm: true
+    prerequisites: [1]
+
+  - id: 7
+    name: "Report"
+    requires_llm: true
+    prerequisites: [1, 2, 3, 4, 5, 6]
+
+# ─── Applicability ──────────────────────────────────────────────────
+applicability:
+  languages: []
+  platforms: []
+  toggles: []
+
+# ─── Accelerator Tools ──────────────────────────────────────────────
+accelerators: []
+
+# ─── Required Files ─────────────────────────────────────────────────
+required_files:
+  - README.md
+  - config.yaml
+  - instrument.yaml
+  - methods/
+  - accelerators/
+  - checklists/
+  - templates/report-template.md
+  - fixes/README.md
+
+# ─── Profile Fields Consumed ────────────────────────────────────────
+profile_fields:
+  - paths.docs_dir
+  - conventions.design_docs
+  - conventions.gap_docs
+  - paths.operations_docs
+  - conventions.adrs
+  - conventions.glossary_script
+  - conventions.schema_map
+  - conventions.metrics_doc
+  - conventions.access_control_config
+
+# ─── Instrument Dependencies ────────────────────────────────────────
+dependencies: []

@@ -1,0 +1,91 @@
+spec_version: "2.0"
+
+# ─── Identity ───────────────────────────────────────────────────────
+id: I03
+name: code-tomographe
+version: 1.0.0
+description: >
+  Code quality and maintainability scanner. Audits linting, formatting,
+  complexity, dead code, duplication, and technical debt.
+report_prefix: CQ
+
+# ─── DR Mapping ─────────────────────────────────────────────────────
+dr_sections: [S3, S13]
+
+# ─── Phase Declarations ─────────────────────────────────────────────
+phases:
+  - id: 1
+    name: "Formatting & Linting"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 2
+    name: "Complexity"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 3
+    name: "Dead Code"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 4
+    name: "Duplication"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 5
+    name: "Technical Debt"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 6
+    name: "Dependency Health"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 7
+    name: "Report"
+    requires_llm: true
+    prerequisites: [1, 2, 3, 4, 5, 6]
+
+# ─── Applicability ──────────────────────────────────────────────────
+applicability:
+  languages: []
+  platforms: []
+  toggles: []
+
+# ─── Accelerator Tools ──────────────────────────────────────────────
+accelerators:
+  - tool: cargo
+    check: "which cargo"
+    command: "cargo fmt --all --check"
+    phases: [1, 2, 3]
+
+  - tool: ruff
+    check: "which ruff"
+    command: "ruff check src/"
+    phases: [1]
+
+  - tool: jscpd
+    check: "npx jscpd --version"
+    command: "npx jscpd --min-lines 10 ."
+    phases: [4]
+
+# ─── Required Files ─────────────────────────────────────────────────
+required_files:
+  - README.md
+  - config.yaml
+  - instrument.yaml
+  - methods/
+  - checklists/
+  - templates/report-template.md
+  - fixes/README.md
+
+# ─── Profile Fields Consumed ────────────────────────────────────────
+profile_fields:
+  - paths.source_dirs
+  - exclude
+
+# ─── Instrument Dependencies ────────────────────────────────────────
+dependencies: []

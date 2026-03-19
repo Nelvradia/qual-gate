@@ -1,0 +1,92 @@
+spec_version: "2.0"
+
+# ─── Identity ───────────────────────────────────────────────────────
+id: I02
+name: test-tomographe
+version: 1.0.0
+description: >
+  Test health scanner. Audits test coverage, quality, alignment with
+  test mandates, CI health, regression risk, and AI/ML test readiness.
+report_prefix: TR
+
+# ─── DR Mapping ─────────────────────────────────────────────────────
+dr_sections: [S4]
+
+# ─── Phase Declarations ─────────────────────────────────────────────
+phases:
+  - id: 1
+    name: "Inventory"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 2
+    name: "Coverage"
+    requires_llm: true
+    prerequisites: [1]
+
+  - id: 3
+    name: "Quality"
+    requires_llm: true
+    prerequisites: [1]
+
+  - id: 4
+    name: "Alignment"
+    requires_llm: true
+    prerequisites: [1]
+
+  - id: 5
+    name: "Health"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 6
+    name: "Regression Risk"
+    requires_llm: true
+    prerequisites: [1, 2]
+
+  - id: 7
+    name: "AI Quality"
+    requires_llm: true
+    prerequisites: [1]
+
+  - id: 8
+    name: "Report"
+    requires_llm: true
+    prerequisites: [1, 2, 3, 4, 5, 6, 7]
+
+# ─── Applicability ──────────────────────────────────────────────────
+applicability:
+  languages: []
+  platforms: []
+  toggles: []
+
+# ─── Accelerator Tools ──────────────────────────────────────────────
+accelerators:
+  - tool: pytest
+    check: "which pytest"
+    command: "pytest tests/ --co -q"
+    phases: [1, 2]
+
+  - tool: cargo
+    check: "which cargo"
+    command: "cargo test --workspace --no-run"
+    phases: [1, 2]
+
+# ─── Required Files ─────────────────────────────────────────────────
+required_files:
+  - README.md
+  - config.yaml
+  - instrument.yaml
+  - methods/
+  - checklists/
+  - templates/report-template.md
+  - fixes/README.md
+
+# ─── Profile Fields Consumed ────────────────────────────────────────
+profile_fields:
+  - paths.source_dirs
+  - paths.test_dirs
+  - exclude
+
+# ─── Instrument Dependencies ────────────────────────────────────────
+dependencies: []

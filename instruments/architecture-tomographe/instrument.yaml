@@ -1,0 +1,88 @@
+spec_version: "2.0"
+
+# ─── Identity ───────────────────────────────────────────────────────
+id: I01
+name: architecture-tomographe
+version: 1.0.0
+description: >
+  Architectural health scanner. Audits module boundaries, dependency
+  graphs, pattern conformance, and structural drift between code and
+  documented architecture.
+report_prefix: AR
+
+# ─── DR Mapping ─────────────────────────────────────────────────────
+dr_sections: [S1]
+
+# ─── Phase Declarations ─────────────────────────────────────────────
+phases:
+  - id: 1
+    name: "Module Mapping"
+    requires_llm: true
+    prerequisites: []
+
+  - id: 2
+    name: "Dependency Analysis"
+    requires_llm: true
+    prerequisites: [1]
+
+  - id: 3
+    name: "Pattern Detection"
+    requires_llm: true
+    prerequisites: [1]
+
+  - id: 4
+    name: "Violation Scan"
+    requires_llm: true
+    prerequisites: [2, 3]
+
+  - id: 5
+    name: "Drift Assessment"
+    requires_llm: true
+    prerequisites: [1]
+
+  - id: 6
+    name: "Evolution Readiness"
+    requires_llm: true
+    prerequisites: [1]
+
+  - id: 7
+    name: "Report"
+    requires_llm: true
+    prerequisites: [1, 2, 3, 4, 5, 6]
+
+# ─── Applicability ──────────────────────────────────────────────────
+applicability:
+  languages: []
+  platforms: []
+  toggles: []
+
+# ─── Accelerator Tools ──────────────────────────────────────────────
+accelerators:
+  - tool: cargo
+    check: "which cargo"
+    command: "cargo metadata --format-version 1"
+    phases: [1, 2]
+
+  - tool: madge
+    check: "npx madge --version"
+    command: "npx madge --circular --extensions ts,js src/"
+    phases: [2]
+
+# ─── Required Files ─────────────────────────────────────────────────
+required_files:
+  - README.md
+  - config.yaml
+  - instrument.yaml
+  - methods/
+  - checklists/
+  - templates/report-template.md
+  - fixes/README.md
+
+# ─── Profile Fields Consumed ────────────────────────────────────────
+profile_fields:
+  - paths.source_dirs
+  - architecture.doc_sources
+  - exclude
+
+# ─── Instrument Dependencies ────────────────────────────────────────
+dependencies: []
