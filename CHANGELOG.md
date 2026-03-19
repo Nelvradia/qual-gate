@@ -26,6 +26,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Project profile field reference (`docs/project-profile-reference.md`)
 - Instrument authoring guide (`docs/instrument-authoring-guide.md`)
 - This CHANGELOG
+- Phase 0 heuristics expanded: b2 build system, include/ dirs, monorepo
+  workspaces, PaaS platforms, colocated tests, documentation-only projects
+- Explicit "phase skipped" prerequisite blocks on all conditional phases
+- C++ accelerator commands across code, test, security, documentation instruments
+- AsciiDoc and Doxygen support in documentation-tomographe
+- TypeScript/Node accelerator parity improvements
+- AI/ML project-type classification (gateway, agent, training, RAG)
 
 ### Changed
 - Glossary linter absorbed into documentation-tomographe as accelerator command
@@ -35,6 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - VISION.md now tracked in version control
 - Root README updated with "How to Run" section and documentation links
 - ROADMAP version milestones reconciled with actual delivery
+- All instrument accelerator commands now reference profile paths instead
+  of hardcoded src/
 
 ### Fixed
 - Removed stale `instruments/dependency-tomographe/output/` directory
