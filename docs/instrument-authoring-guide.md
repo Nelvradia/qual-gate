@@ -18,6 +18,7 @@ Every instrument lives under `instruments/` and follows this structure:
 
 ```
 instruments/{name}-tomographe/
+├── instrument.yaml        # Machine-readable manifest (see schema below)
 ├── README.md              # Instrument overview, phases, quick start
 ├── config.yaml            # Thresholds, severity weights, exclude patterns
 ├── methods/               # Scanning methodology (one file per phase)
@@ -37,12 +38,72 @@ instruments/{name}-tomographe/
 
 | File/Dir | Purpose |
 |----------|---------|
+| `instrument.yaml` | Machine-readable manifest. Declares identity, phases, dependencies, and profile fields consumed. Validated by `cli/validate_instrument.py`. |
 | `README.md` | Entry point. The AI assistant reads this first. Contains instrument scope, phases, severity rules, and delegation instructions. |
 | `config.yaml` | Instrument-specific thresholds and configuration. Does NOT contain project paths — those come from `project-profile.yaml`. |
 | `methods/` | Step-by-step scanning methodology. Each file is one phase. Numbered for execution order. |
 | `checklists/` | Structured checklist items. Referenced by method files. |
 | `templates/` | Output report templates with placeholders. The assistant fills these in. |
 | `fixes/` | Remediation guidance. One file per finding category. See [fixes content standard](../instruments/fixes-content-standard.md). |
+
+---
+
+## Instrument Manifest (instrument.yaml)
+
+Every instrument must include an `instrument.yaml` manifest that declares its identity,
+phases, dependencies, and integration points. This manifest is the machine-readable
+contract between the instrument and the orchestrator.
+
+**Schema:** [`instrument.schema.yaml`](../instrument.schema.yaml)
+**Example:** [`instrument.example.yaml`](../instrument.example.yaml)
+
+### Required fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `spec_version` | string | Must be `"2.0"` |
+| `id` | string | Instrument ID (e.g., `I01`). Must match `qualitoscope/config.yaml`. |
+| `name` | string | Directory name (e.g., `architecture-tomographe`) |
+| `version` | string | SemVer version of this instrument |
+| `description` | string | One-line summary from README first paragraph |
+| `report_prefix` | string | Uppercase prefix for report runs (e.g., `AR`, `TR`) |
+| `dr_sections` | list | DR section IDs this instrument covers |
+| `phases` | list | Ordered phase declarations with LLM/prerequisites |
+| `required_files` | list | Files/dirs that must exist in the instrument directory |
+| `profile_fields` | list | Dotted paths into `project-profile.yaml` consumed |
+
+### Optional fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `applicability` | object | `{}` | Language, platform, and toggle filters |
+| `accelerators` | list | `[]` | External tools that speed up specific phases |
+| `dependencies` | list | `[]` | Instrument IDs that must run first |
+
+### Phase declaration
+
+Each phase entry declares:
+
+```yaml
+phases:
+  - id: 1                    # matches methods/01-*.md
+    name: "Module Mapping"   # human-readable name
+    requires_llm: true       # false = accelerator-only phase
+    prerequisites: []        # phase IDs that must complete first
+```
+
+### Validation
+
+Run the validation tool to check your manifest against the schema and verify
+consistency with the instrument's files on disk:
+
+```bash
+python -m cli.validate_instrument instruments/your-tomographe/
+```
+
+The validator checks 10 rules including file existence, phase-to-method alignment,
+report prefix consistency, and orchestrator registration. See
+[`cli/validate_instrument.py`](../cli/validate_instrument.py) for the full rule set.
 
 ---
 
@@ -290,6 +351,7 @@ Run a full qualitoscope scan with the new instrument registered. Verify:
 
 ## Checklist — New Instrument Readiness
 
+- [ ] `instrument.yaml` manifest conforming to `instrument.schema.yaml`
 - [ ] `README.md` with scope, phases, quick start, and severity rules
 - [ ] `config.yaml` with documented thresholds and sensible defaults
 - [ ] At least 2 method files covering core scanning phases
